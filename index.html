@@ -636,13 +636,20 @@ function insideNgon(pt, n, R, r) { // circle of radius r fully inside ngon(n, R)
 function starPoly(c, ro, ri, m, rot) { const o = []; for (let i = 0; i < 2 * m; i++) { const r = i % 2 ? ri : ro, a = rot + i * Math.PI / m - Math.PI / 2; o.push([c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)]); } return o; }
 function patternHoles(n, R, type, density, bridge, seed) {
   const S = ngon(n, R), holes = [], b = Math.max(0.6, bridge), kc = 2 + density, c = 2 * R / kc;
-  const rng = mulberry32(seed || 97), keepCell = (poly, shrink = true) => {
-    let q = clipConvex(ccw(poly), S); if (q.length < 3) return;
-    if (shrink) q = offset(q, -b / 2);
-    if (q.length >= 3 && Math.abs(area(q)) > b * b * 0.8) {
-      // reject inverted results of over-shrinking: every vertex must stay inside the clipped cell's hull
-      if (area(q) > 0) holes.push(q);
+  const insetConvex = (poly, dd) => { // exact inset of a convex polygon: every edge moves in by dd
+    let q = ccw(poly); const src = q.slice();
+    for (let i = 0; i < src.length && q.length >= 3; i++) {
+      const A = src[i], B = src[(i + 1) % src.length], dx = B[0] - A[0], dy = B[1] - A[1], l = Math.hypot(dx, dy); if (l < 1e-9) continue;
+      const ux = dx / l, uy = dy / l, nx = -uy * dd, ny = ux * dd, F = 1e5;
+      const A2 = [A[0] + nx - ux * F, A[1] + ny - uy * F], B2 = [B[0] + nx + ux * F, B[1] + ny + uy * F];
+      q = clipConvex(q, [A2, B2, [B2[0] - uy * F, B2[1] + ux * F], [A2[0] - uy * F, A2[1] + ux * F]]);
     }
+    return q;
+  };
+  const rng = mulberry32(seed || 97), keepCell = (poly) => {
+    let q = clipConvex(ccw(poly), S); if (q.length < 3) return;
+    q = insetConvex(q, b / 2);
+    if (q.length >= 3 && Math.abs(area(q)) > b * b * 0.8) holes.push(q);
   };
   const ext = R / Math.cos(Math.PI / n) + c * 2;
   if (type === 'dots') {
@@ -692,7 +699,8 @@ function patternHoles(n, R, type, density, bridge, seed) {
     }
   } else if (type === 'sunburst') {
     const m = n * Math.max(2, Math.round(density / 2 + 1)), r0 = Math.max(c * 0.8, b * 3), big2 = ext * 2;
-    if (r0 - b > 1) holes.push(circle([0, 0], r0 - b, 48));
+    const rcIn = r0 * Math.cos(Math.PI / m) - b / 2 - 0.1; // rays' inner edges are chords: keep a full bridge from them
+    if (rcIn > 1) holes.push(circle([0, 0], rcIn, 48));
     for (let i = 0; i < m; i++) {
       const a1 = -Math.PI / 2 + i * TAU / m, a2 = a1 + TAU / m;
       const w = [[r0 * Math.cos(a1), r0 * Math.sin(a1)], [big2 * Math.cos(a1), big2 * Math.sin(a1)], [big2 * Math.cos(a2), big2 * Math.sin(a2)], [r0 * Math.cos(a2), r0 * Math.sin(a2)]];
@@ -731,17 +739,23 @@ function patternHoles(n, R, type, density, bridge, seed) {
       spots.forEach(([x, y, r]) => { const q = [x * R, y * R], ro = r * R; if (insideNgon(q, n, R, ro) && Math.hypot(q[0] - cm[0], q[1] - cm[1]) > rm + ro + b) holes.push(starPoly(q, ro, ro * 0.42, 5, x * 3)); });
     }
   } else if (type === 'leaves') {
-    const m = n * 2, L0 = R * 0.95, wv = R * 0.22;
+    const m = n * 2, L0 = R * 0.95, wv = R * 0.22, half = Math.PI / m;
+    // petals start far enough out that neighbours (and the centre hole) stay a full bridge apart
+    const r0 = Math.max(b * 2.5, (b / 2 + b / 2) / Math.sin(half) + b * 0.5, R * 0.14);
+    const yMax = x => Math.max(0, x * Math.sin(half) - b / 2 - 0.05);
     for (let i = 0; i < m; i++) {
-      const a = -Math.PI / 2 + i * TAU / m, d = [Math.cos(a), Math.sin(a)], nn = [-d[1], d[0]], pts = [];
-      const r0 = Math.max(b * 2.2, R * 0.12);
-      for (let j = 0; j <= 20; j++) { const tt = j / 20, x = r0 + (L0 - r0) * tt, y = wv * Math.sin(Math.PI * tt) * (0.85 - 0.35 * tt); pts.push(P2.add(P2.mul(d, x), P2.mul(nn, y))); }
-      for (let j = 19; j >= 1; j--) { const tt = j / 20, x = r0 + (L0 - r0) * tt, y = -wv * Math.sin(Math.PI * tt) * (0.85 - 0.35 * tt); pts.push(P2.add(P2.mul(d, x), P2.mul(nn, y))); }
-      const ok = pts.every(q => insideNgon(q, n, R, 0));
-      const leaf = ok ? pts : clipConvex(ccw(pts), S);
-      if (leaf.length > 4) holes.push(leaf);
+      const a = -Math.PI / 2 + i * TAU / m, d = [Math.cos(a), Math.sin(a)], nn = [-d[1], d[0]], top = [], bot = [];
+      for (let j = 0; j <= 24; j++) {
+        const tt = j / 24, x = r0 + (L0 - r0) * tt, y = Math.min(wv * Math.sin(Math.PI * tt) * (0.85 - 0.35 * tt), yMax(x));
+        top.push(P2.add(P2.mul(d, x), P2.mul(nn, y)));
+        if (j > 0 && j < 24) bot.unshift(P2.add(P2.mul(d, x), P2.mul(nn, -y)));
+      }
+      const pts = top.concat(bot);
+      const leaf = pts.every(q => insideNgon(q, n, R, 0)) ? pts : clipConvex(ccw(pts), S);
+      if (leaf.length > 4 && Math.abs(area(leaf)) > b * b) holes.push(ccw(leaf));
     }
-    holes.push(circle([0, 0], Math.max(b * 1.2, R * 0.12) - b * 0.6, 24));
+    const rc = r0 - b * 1.2;
+    if (rc > 1) holes.push(circle([0, 0], rc, 32));
   }
   return holes.filter(h => h && h.length >= 3);
 }

@@ -36,4 +36,5 @@ node build.js            # inlines src/ into index.html
 node tests/test.js       # solids, bracket/slot alignment, net closure, packing
 node tests/ftest.js      # finger-joint collision sweep (slow)
 node tests/btest.js      # bevelled vs square teeth: collisions, protrusion, gaps
+node tests/patterns.js   # every cut-out pattern keeps a full bridge between holes
 ```
