@@ -68,6 +68,7 @@ body[data-mode=net] .row.only-net,body[data-mode=tab] .row.only-tab,body:not([da
 .badge{position:absolute;left:14px;top:12px;font:500 12px "IBM Plex Mono",monospace;color:var(--mute)}
 .badge b{color:var(--ink);font-family:Fraunces,serif;font-size:20px;font-weight:500;display:block}
 .hint{position:absolute;left:14px;right:70px;top:14px;font-size:11.5px;color:var(--mute);pointer-events:none}
+.hint.ov.faded{pointer-events:none}
 .hm{display:none}@media (hover:none){.hd{display:none}.hm{display:inline}}
 .zbar{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;align-items:center;gap:6px;background:rgba(23,25,21,.82);border:1px solid var(--line);border-radius:999px;padding:6px}
 .zbar button{width:36px;height:36px;border-radius:50%;border:0;background:var(--panel2);color:var(--ink);font-size:20px;line-height:1;cursor:pointer}
@@ -120,6 +121,11 @@ ol.jsteps{padding-left:20px;margin:12px 0 0}ol.jsteps li{margin:6px 0;font-size:
 .solo{position:absolute;left:12px;top:36px;background:rgba(23,25,21,.82)}
 .solo button{padding:6px 11px}
 .vbar.dim{opacity:.45}
+.ov{transition:opacity .6s ease}
+.ov.faded{opacity:.15!important}
+.ov.faded>*{pointer-events:none}
+.ov.faded::after{content:'';position:absolute;inset:-6px;cursor:pointer;pointer-events:auto}
+.hint.ov.faded::after{inset:-4px}
 .zbar button.on{background:var(--wood);color:#2a1d0f}
 .stereo-pill{position:absolute;left:50%;transform:translateX(-50%);bottom:64px;background:rgba(23,25,21,.85)}
 .lamp-ctl{position:absolute;left:12px;top:76px;display:flex;flex-direction:column;gap:2px;background:rgba(23,25,21,.85);border:1px solid var(--line);border-radius:12px;padding:7px 12px;font-size:12px;color:var(--mute)}
@@ -2082,10 +2088,34 @@ function bindMax() {
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && view.classList.contains('max')) set(false); });
 }
 
+
+/* ---------- overlay controls fade to 15% after 10 s; a deliberate tap brings them back ---------- */
+const OV_SEL = ['.hint', '#solo', '#lamp-ctl', '#jig-legend', '.zbar', '#stereo', '.vbar'];
+const ovTimers = new Map();
+function ovReveal(el) {
+  if (!el) return;
+  el.classList.remove('faded');
+  clearTimeout(ovTimers.get(el));
+  ovTimers.set(el, setTimeout(() => el.classList.add('faded'), 10000));
+}
+function bindFade() {
+  OV_SEL.forEach(sel => {
+    const el = $(sel); if (!el) return;
+    el.classList.add('ov');
+    // while faded, the shield (::after) takes every event: only a real click (down + up in place) reveals
+    el.addEventListener('click', e => { if (el.classList.contains('faded')) { e.preventDefault(); e.stopPropagation(); ovReveal(el); } }, true);
+    ['pointerdown', 'input', 'change', 'wheel'].forEach(ev => el.addEventListener(ev, () => { if (!el.classList.contains('faded')) ovReveal(el); }, true));
+    ovReveal(el);
+  });
+  // panels that appear because of another control start fresh
+  new MutationObserver(ms => ms.forEach(m => { if (m.attributeName === 'hidden' && !m.target.hidden) ovReveal(m.target); }))
+    .observe($('.view'), { attributes: true, subtree: true, attributeFilter: ['hidden'] });
+}
+
 /* boot */
 try { G = initGL(); } catch (e) { G = null; }
 if (!G) ctx = cv.getContext('2d');
-bind(); bindArt(); bindMax(); bindSolo(); bindStereo(); bindLamp(); syncInputs(); icons(); compute(); updPlay();
+bind(); bindArt(); bindMax(); bindSolo(); bindStereo(); bindLamp(); bindFade(); syncInputs(); icons(); compute(); updPlay();
 requestAnimationFrame(frame);
 })();
 </script>

@@ -943,9 +943,33 @@ function bindMax() {
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && view.classList.contains('max')) set(false); });
 }
 
+
+/* ---------- overlay controls fade to 15% after 10 s; a deliberate tap brings them back ---------- */
+const OV_SEL = ['.hint', '#solo', '#lamp-ctl', '#jig-legend', '.zbar', '#stereo', '.vbar'];
+const ovTimers = new Map();
+function ovReveal(el) {
+  if (!el) return;
+  el.classList.remove('faded');
+  clearTimeout(ovTimers.get(el));
+  ovTimers.set(el, setTimeout(() => el.classList.add('faded'), 10000));
+}
+function bindFade() {
+  OV_SEL.forEach(sel => {
+    const el = $(sel); if (!el) return;
+    el.classList.add('ov');
+    // while faded, the shield (::after) takes every event: only a real click (down + up in place) reveals
+    el.addEventListener('click', e => { if (el.classList.contains('faded')) { e.preventDefault(); e.stopPropagation(); ovReveal(el); } }, true);
+    ['pointerdown', 'input', 'change', 'wheel'].forEach(ev => el.addEventListener(ev, () => { if (!el.classList.contains('faded')) ovReveal(el); }, true));
+    ovReveal(el);
+  });
+  // panels that appear because of another control start fresh
+  new MutationObserver(ms => ms.forEach(m => { if (m.attributeName === 'hidden' && !m.target.hidden) ovReveal(m.target); }))
+    .observe($('.view'), { attributes: true, subtree: true, attributeFilter: ['hidden'] });
+}
+
 /* boot */
 try { G = initGL(); } catch (e) { G = null; }
 if (!G) ctx = cv.getContext('2d');
-bind(); bindArt(); bindMax(); bindSolo(); bindStereo(); bindLamp(); syncInputs(); icons(); compute(); updPlay();
+bind(); bindArt(); bindMax(); bindSolo(); bindStereo(); bindLamp(); bindFade(); syncInputs(); icons(); compute(); updPlay();
 requestAnimationFrame(frame);
 })();
