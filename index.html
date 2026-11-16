@@ -1,0 +1,1765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Polysmith — Platonic Solids for the Laser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#171915;--panel:#20231e;--panel2:#272b25;--line:#363b33;--ink:#efe6d6;--mute:#a49c8c;--wood:#e2c08d;--laser:#ff5a3c;--blue:#5b8cff;--green:#57c26b;--r:14px}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "IBM Plex Sans",system-ui,sans-serif;-webkit-text-size-adjust:100%}
+button,input,select{font:inherit;color:inherit}
+.wrap{max-width:1380px;margin:0 auto;padding:18px 16px 60px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+h1{font-family:Fraunces,serif;font-weight:700;font-size:34px;line-height:1;margin:0;letter-spacing:-.5px}
+h1 span{color:var(--laser)}
+.tag{color:var(--mute);margin:6px 0 0;font-size:14px}
+.seg{display:inline-flex;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}
+.seg button{border:0;background:none;padding:6px 12px;border-radius:999px;cursor:pointer;color:var(--mute);font-size:13px;font-weight:500;white-space:nowrap}
+.seg button.on{background:var(--wood);color:#2a1d0f}
+.grid{display:grid;grid-template-columns:380px 1fr;gap:16px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:1fr;gap:0}.ctl-col,.view-col{display:contents}.view{order:-2}.view-col>section{order:2}.ctl-col>section{order:1}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px}
+.card h2{font:600 11px/1 "IBM Plex Mono",monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin:0 0 12px}
+.solids{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.solid-btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:6px 2px 7px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
+.solid-btn canvas{width:56px;height:56px;max-width:100%}
+.solid-btn b{font:500 12px "IBM Plex Mono",monospace}
+.solid-btn small{font-size:10.5px;color:var(--mute)}
+.solid-btn.on{border-color:var(--wood);background:#3a3122;box-shadow:0 0 0 1px var(--wood) inset}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.modes button{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 10px;text-align:left;cursor:pointer}
+.modes button b{display:block;font-size:13.5px}
+.modes button span{display:block;font-size:11.5px;color:var(--mute);line-height:1.3;margin-top:2px}
+.modes button:last-child{grid-column:span 2}
+.modes button.on{border-color:var(--wood);background:#3a3122;color:var(--ink)}
+.modes button{white-space:normal;color:var(--ink)}
+.row{display:flex;gap:10px;align-items:center;margin:10px 0}
+.row>label{flex:1;font-size:13.5px}
+.row>label small{display:block;color:var(--mute);font-size:11.5px;line-height:1.3}
+.num{display:flex;align-items:center;background:#11130f;border:1px solid var(--line);border-radius:9px;padding:0 9px;width:132px}
+.num input{width:100%;background:none;border:0;padding:8px 0;outline:none;font-family:"IBM Plex Mono",monospace;font-size:14px}
+.num i{font-style:normal;color:var(--mute);font-size:12px;padding-left:4px}
+select{background:#11130f;border:1px solid var(--line);border-radius:9px;padding:8px;width:132px}
+.num:focus-within,select:focus{border-color:var(--wood);outline:none}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:-2px 0 6px}
+.chip{background:none;border:1px dashed var(--line);border-radius:999px;padding:3px 9px;font-size:12px;color:var(--mute);cursor:pointer}
+.chip:hover{color:var(--ink);border-color:var(--wood)}
+input[type=range]{accent-color:var(--wood);width:132px}
+input[type=checkbox]{accent-color:var(--wood);width:18px;height:18px}
+details summary{cursor:pointer;color:var(--mute);font-size:13px;list-style:none;padding:4px 0}
+details summary::before{content:"＋ ";color:var(--wood)}
+details[open] summary::before{content:"－ "}
+.only-net,.only-tab,.only-panel,.only-glue{display:none}
+body[data-mode=net] .only-net,body[data-mode=tab] .only-tab,body:not([data-mode=net]) .only-panel,body[data-mode=block] .only-glue,body[data-mode=none] .only-glue{display:block}
+.row.only-net,.row.only-tab,.row.only-panel,.row.only-fit,.row.only-finger{display:none}
+body[data-mode=tab] .row.only-fit,body[data-mode=finger] .row.only-fit,body[data-mode=finger] .row.only-finger{display:flex}
+body[data-mode=finger] details.brk{display:none}
+body[data-mode=net] .row.only-net,body[data-mode=tab] .row.only-tab,body:not([data-mode=net]) .row.only-panel{display:flex}
+.view{position:relative;background:radial-gradient(120% 90% at 50% 30%,#2b3027 0%,#171915 70%);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:14px}
+#view{display:block;width:100%;height:min(56vh,480px);touch-action:none;cursor:grab}
+.vbar{position:absolute;left:12px;right:12px;bottom:12px;display:flex;align-items:center;gap:10px;background:rgba(23,25,21,.82);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:999px;padding:6px 12px}
+.vbar button{width:32px;height:32px;border-radius:50%;border:0;background:var(--wood);color:#2a1d0f;cursor:pointer;font-size:12px;flex:none}
+.vbar input{flex:1;width:auto}
+.vbar span{font:500 11px "IBM Plex Mono",monospace;color:var(--mute);letter-spacing:.1em;text-transform:uppercase;min-width:58px}
+.badge{position:absolute;left:14px;top:12px;font:500 12px "IBM Plex Mono",monospace;color:var(--mute)}
+.badge b{color:var(--ink);font-family:Fraunces,serif;font-size:20px;font-weight:500;display:block}
+.hint{position:absolute;left:14px;right:70px;top:14px;font-size:11.5px;color:var(--mute);pointer-events:none}
+.hm{display:none}@media (hover:none){.hd{display:none}.hm{display:inline}}
+.zbar{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;align-items:center;gap:6px;background:rgba(23,25,21,.82);border:1px solid var(--line);border-radius:999px;padding:6px}
+.zbar button{width:36px;height:36px;border-radius:50%;border:0;background:var(--panel2);color:var(--ink);font-size:20px;line-height:1;cursor:pointer}
+.zbar button:hover{background:#3a3122}
+#zlvl{font:500 11px 'IBM Plex Mono',monospace;color:var(--mute)}
+dl#stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:8px;margin:0}
+dl#stats div{background:var(--panel2);border-radius:10px;padding:8px 10px}
+dt{font-size:11px;color:var(--mute)}dd{margin:2px 0 0;font:500 15px "IBM Plex Mono",monospace}
+#parts{list-style:none;margin:12px 0 0;padding:0;display:flex;gap:8px;flex-wrap:wrap}
+#parts li{background:#3a3122;border:1px solid #5a4a30;border-radius:999px;padding:4px 11px;font-size:13px}
+#warn .w{border-radius:10px;padding:9px 12px;font-size:13.5px;margin-top:10px}
+.w.err{background:#4a1f17;border:1px solid #8a3426}.w.warn{background:#463a17;border:1px solid #7d6826}.w.info{background:#1d3240;border:1px solid #2d5068}
+#sheet{background:#0f110d;border-radius:10px;padding:8px;line-height:0}
+#sheet svg{max-height:62vh;display:block;margin:auto;border-radius:4px}
+#sheet-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+#sheet-tabs button{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:4px 10px;font-size:12.5px;cursor:pointer}
+#sheet-tabs button.on{border-color:var(--wood);color:var(--wood)}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--mute);margin-top:8px;flex-wrap:wrap}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
+#sheet-cap{font:12px "IBM Plex Mono",monospace;color:var(--mute);margin-top:6px}
+.dls{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.btn{border:1px solid var(--line);background:var(--panel2);border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:500;font-size:14px}
+.btn.primary{background:var(--laser);border-color:var(--laser);color:#fff}
+.btn:hover{filter:brightness(1.1)}
+ol#guide{margin:0;padding-left:20px}ol#guide li{margin:6px 0;font-size:14px}
+.foot{color:var(--mute);font-size:12.5px;margin-top:10px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);opacity:0;background:var(--ink);color:#1a1a1a;padding:10px 16px;border-radius:999px;font-weight:500;transition:.25s;pointer-events:none;z-index:9}
+.toast.show{opacity:1;transform:translate(-50%,0)}.toast.bad{background:#ff9b8a}
+.linkbtn{background:none;border:0;color:var(--mute);text-decoration:underline;cursor:pointer;font-size:12.5px;padding:0}
+
+.view.max{position:fixed;inset:0;z-index:50;border-radius:0;margin:0;border:0;background:radial-gradient(120% 90% at 50% 30%,#2b3027 0%,#111310 75%)}
+.view.max #view{height:100vh;height:100dvh}
+.view:fullscreen{width:100%;height:100%}
+body.noscroll{overflow:hidden}
+.art-row{display:flex;gap:12px;align-items:center}
+#art-thumb{width:72px;height:72px;flex:none;border-radius:10px;background:#f4ead8;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#art-thumb img{width:88%;height:88%;object-fit:contain}
+#art-thumb span{font-size:10.5px;color:#8a7d66;text-align:center;padding:4px}
+.art-meta{flex:1;min-width:0}#art-name{font-size:13px;color:var(--mute);margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.art-btns{display:flex;gap:6px}
+.btn.small{padding:7px 11px;font-size:13px;display:inline-block;cursor:pointer}
+.btn.ghost{background:none}
+#ai{margin-top:12px}
+#ai textarea{width:100%;background:#11130f;border:1px solid var(--line);border-radius:9px;padding:9px;font:inherit;font-size:14px;resize:vertical;color:var(--ink)}
+#ai textarea:focus{outline:none;border-color:var(--wood)}
+.ai-row{display:flex;gap:10px;align-items:center;margin-top:6px}#ai-status{font-size:12px;color:var(--mute)}
+.jstats{display:grid;grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:8px;margin:0 0 12px}.jstats div{background:var(--panel2);border-radius:10px;padding:8px 10px}
+.jprev{background:#0f110d;border-radius:10px;padding:8px;line-height:0}.jprev svg{display:block;max-height:40vh;margin:auto}
+ol.jsteps{padding-left:20px;margin:12px 0 0}ol.jsteps li{margin:6px 0;font-size:13.5px}
+.solo{position:absolute;left:12px;top:36px;background:rgba(23,25,21,.82)}
+.solo button{padding:6px 11px}
+.vbar.dim{opacity:.45}
+.jleg{position:absolute;left:12px;top:76px;display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--mute);background:rgba(23,25,21,.7);padding:5px 10px;border-radius:999px;max-width:calc(100% - 90px)}
+.dcol{display:inline-flex;align-items:center;gap:6px;cursor:pointer}.dcol input{width:26px;height:20px;padding:0;border:1px solid var(--line);border-radius:5px;background:none;cursor:pointer}
+.jleg i{display:inline-block;width:12px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
+</style>
+</head>
+<body data-mode="tab">
+<div class="wrap">
+<header>
+  <div>
+    <h1>Poly<span>smith</span></h1>
+    <p class="tag">Platonic solids for the laser. Thickness and kerf are handled for you, and every joint is checked in 3D.</p>
+  </div>
+  <div class="seg" data-seg="units"><button data-v="mm">mm</button><button data-v="in">inches</button></div>
+</header>
+
+<div class="grid">
+<div class="ctl-col">
+  <section class="card">
+    <h2>1 · Solid</h2>
+    <div class="solids">
+      <button class="solid-btn" data-solid="tetra"><canvas></canvas><b>d4</b><small>Tetra</small></button>
+      <button class="solid-btn" data-solid="cube"><canvas></canvas><b>d6</b><small>Cube</small></button>
+      <button class="solid-btn" data-solid="octa"><canvas></canvas><b>d8</b><small>Octa</small></button>
+      <button class="solid-btn" data-solid="dodeca"><canvas></canvas><b>d12</b><small>Dodeca</small></button>
+      <button class="solid-btn" data-solid="icosa"><canvas></canvas><b>d20</b><small>Icosa</small></button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>2 · Construction</h2>
+    <div class="modes seg" data-seg="mode" style="display:grid;border:0;background:none;padding:0;border-radius:0">
+      <button data-v="tab"><b>Slot &amp; bracket</b><span>Glue-free press fit. Wood, MDF, acrylic.</span></button>
+      <button data-v="finger"><b>Finger joints</b><span>Interlocking edges, set to this solid's angle.</span></button>
+      <button data-v="block"><b>Glue blocks</b><span>Clean faces with hidden inside blocks.</span></button>
+      <button data-v="none"><b>Edge-glued</b><span>Bare panels plus angle jigs. Acrylic.</span></button>
+      <button data-v="net"><b>Folding net</b><span>One piece. Card, paper, chipboard.</span></button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>3 · Size &amp; material</h2>
+    <div class="row"><label>Size measured as</label>
+      <select data-k="measure"><option value="edge">Edge length</option><option value="sphere">Across points</option><option value="height">Height on table</option></select></div>
+    <div class="row"><label>Size</label><div class="num"><input data-k="size" inputmode="decimal"><i data-unit></i></div></div>
+    <div class="row only-panel"><label>Material thickness<small>Measure with calipers. Sheets vary.</small></label><div class="num"><input data-k="t" inputmode="decimal"><i data-unit></i></div></div>
+    <div class="chips only-panel"><button class="chip" data-t="3">3 mm</button><button class="chip" data-t="3.175">⅛″</button><button class="chip" data-t="5.5">5.5 mm</button><button class="chip" data-t="6.35">¼″</button></div>
+    <div class="row only-panel"><label>Kerf<small>Width your beam removes</small></label><div class="num"><input data-k="kerf" inputmode="decimal"><i data-unit></i></div></div>
+    <div class="row only-fit"><label>Fit<small>+ looser · − tighter</small></label><div class="num"><input data-k="fit" inputmode="decimal"><i data-unit></i></div></div>
+    <div class="row only-finger"><label>Finger width<small>0 = auto (about 2.5× thickness)</small></label><div class="num"><input data-k="fingerW" inputmode="decimal"><i data-unit></i></div></div>
+    <div class="row only-finger"><label>Teeth<small>Bevelled teeth close with no gaps.</small></label><select data-k="fingerStyle"><option value="flush">Flush (square cut)</option><option value="full">Full (sand flush)</option><option value="bevel">Bevelled (tightest, needs jig)</option></select></div>
+    <div class="row only-net"><label>Glue tab height</label><div class="num"><input data-k="tabH" inputmode="decimal"><i data-unit></i></div></div>
+    <div class="row only-net"><label>Fold lines</label><select data-k="fold"><option value="score">Score layer (blue)</option><option value="perf">Perforated cut</option></select></div>
+    <div class="row only-net"><label>Copies</label><div class="num"><input data-k="copies" inputmode="numeric"><i></i></div></div>
+    <div class="row"><label>Dice numbers<small>Engraved; opposite faces add to N+1</small></label><input type="checkbox" data-k="dice"></div>
+  </section>
+
+  <section class="card only-panel">
+    <h2>4 · Details</h2>
+    <div class="row"><label>Face window</label><select data-k="window"><option value="none">None</option><option value="circle">Circle</option><option value="poly">Polygon</option><option value="star">Star</option></select></div>
+    <div class="row"><label>Window size <span id="wpct-out"></span></label><input type="range" min="10" max="100" step="1" data-k="windowPct"></div>
+    <details class="brk"><summary>Bracket tuning</summary>
+      <div class="row"><label>Brackets per edge</label><div class="seg" data-seg="perEdge"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button></div></div>
+      <div class="row"><label>Tab / block length<small>0 = auto (3× thickness)</small></label><div class="num"><input data-k="tabLen" inputmode="decimal"><i data-unit></i></div></div>
+      <div class="row only-tab"><label>Tab stands proud<small>Extra length past the outside face</small></label><div class="num"><input data-k="protrude" inputmode="decimal"><i data-unit></i></div></div>
+    </details>
+  </section>
+
+
+  <section class="card">
+    <h2>Artwork on the faces</h2>
+    <div class="art-row">
+      <div id="art-thumb"></div>
+      <div class="art-meta">
+        <div id="art-name">Upload an SVG</div>
+        <div class="art-btns"><label class="btn small">Upload SVG<input type="file" id="art-file" accept=".svg,image/svg+xml" hidden></label><button class="btn small ghost" id="art-clear" hidden>Remove</button></div>
+      </div>
+    </div>
+    <div id="ai" hidden>
+      <textarea id="ai-prompt" rows="2" placeholder="Describe it, e.g. &quot;a fox curled up asleep, bold woodcut style&quot;"></textarea>
+      <div class="ai-row"><button class="btn small primary" id="ai-go">Draw it</button><span id="ai-status">Claude draws an SVG made for the laser.</span></div>
+    </div>
+    <p id="ai-off" class="foot" style="margin-top:8px">Open this page in the Claude app to describe artwork and have Claude draw it.</p>
+    <div class="art-opt row"><label>Laser does</label><select data-k="artMode"><option value="fill">Fill engrave (black layer)</option><option value="line">Line engrave (green)</option><option value="cut">Cut through (stencil)</option></select></div>
+    <div class="art-opt row"><label>Size</label><input type="range" min="20" max="150" step="1" data-k="artScale"></div>
+    <div class="art-opt row"><label>Rotate</label><input type="range" min="0" max="355" step="5" data-k="artRot"></div>
+    <div class="art-opt row"><label>Put it on</label><select data-k="artWhere"><option value="all">Every face</option><option value="one">One face</option></select></div>
+  </section>
+  <section class="card">
+    <h2>5 · Sheet</h2>
+    <div class="row"><label>Stock size</label><select data-k="sheetPreset">
+      <option value="304.8x304.8">12 × 12″</option><option value="304.8x508">12 × 20″</option><option value="304.8x609.6">12 × 24″</option><option value="457.2x609.6">18 × 24″</option><option value="609.6x914.4">24 × 36″</option>
+      <option value="300x300">300 × 300 mm</option><option value="600x400">600 × 400 mm</option><option value="900x600">900 × 600 mm</option><option value="1300x900">1300 × 900 mm</option><option value="custom">Custom</option></select></div>
+    <div class="row"><label>Width</label><div class="num"><input data-k="sheetW" inputmode="decimal"><i data-unit></i></div></div>
+    <div class="row"><label>Height</label><div class="num"><input data-k="sheetH" inputmode="decimal"><i data-unit></i></div></div>
+    <div class="row"><label>Part spacing</label><div class="num"><input data-k="spacing" inputmode="decimal"><i data-unit></i></div></div>
+    <div class="row"><label>Edge margin</label><div class="num"><input data-k="margin" inputmode="decimal"><i data-unit></i></div></div>
+    <button class="linkbtn" id="reset">Reset everything</button>
+  </section>
+</div>
+
+<div class="view-col">
+  <div class="view">
+    <canvas id="view"></canvas>
+    <div class="hint"><span class="hd">drag to spin · scroll to zoom · shift-drag to pan · double-click to reset</span><span class="hm">drag to spin · pinch to zoom · two fingers to pan</span></div>
+    <div class="seg solo" id="solo"><button data-s="all">Whole</button><button data-s="face">One face</button><button data-s="bracket">Bracket</button><button data-s="jig">Jig</button></div>
+    <div id="jig-legend" class="jleg" hidden><span><i style="background:#ff8000"></i>Tip cuts</span><span><i style="background:#a000ff"></i>Notch cuts</span><label class="dcol">Deck colour <input type="color" id="deck-color"></label></div>
+    <div class="zbar"><button id="zin" aria-label="Zoom in">+</button><span id="zlvl">1×</span><button id="zout" aria-label="Zoom out">−</button><button id="zfit" aria-label="Reset view">⤢</button><button id="zmax" aria-label="Full screen">⛶</button></div>
+    <div class="vbar"><button id="play">▶</button><span class="only-net" style="display:none">Fold</span><span class="lbl-x">Explode</span><input type="range" id="slider" min="0" max="1000" value="0"></div>
+  </div>
+  <style>body[data-mode=net] .lbl-x{display:none}body[data-mode=net] .vbar .only-net{display:inline!important}</style>
+
+  <section class="card">
+    <dl id="stats"></dl>
+    <ul id="parts"></ul>
+    <div id="warn"></div>
+  </section>
+
+  <section class="card">
+    <h2>Cut sheet</h2>
+    <div id="sheet-tabs"></div>
+    <div id="sheet"></div>
+    <div id="sheet-cap"></div>
+    <div class="legend"><span><i style="background:#ff0000"></i>Cut</span><span><i style="background:#0000ff"></i>Score / fold</span><span><i style="background:#00a000"></i>Line engrave</span><span><i style="background:#000;outline:1px solid #555"></i>Fill engrave</span></div>
+    <div class="dls">
+      <button class="btn primary" id="dl-zip">Download everything (.zip)</button>
+      <button class="btn" id="dl-svg">SVG</button>
+      <button class="btn" id="dl-dxf">DXF</button>
+      <button class="btn only-tab" id="dl-coupon" style="display:none">Fit-test coupon</button>
+    </div>
+    <style>body[data-mode=tab] #dl-coupon{display:inline-block!important}</style>
+    <p class="foot">Files are in millimetres at 1:1 with hairline strokes. LightBurn, Glowforge, xTool and RDWorks all read them. The zip has every sheet as SVG and DXF, plus a README.</p>
+  </section>
+
+
+  <section class="card" id="jigcard" hidden>
+    <h2>Bevel jig</h2>
+    <div id="jig-body"></div>
+  </section>
+  <section class="card">
+    <h2>Assembly</h2>
+    <ol id="guide"></ol>
+  </section>
+</div>
+</div>
+</div>
+<div class="toast" id="toast"></div>
+<script>/* earcut 2.2.4 — (c) 2016 Mapbox, ISC License */
+!function(e){"object"==typeof exports&&"undefined"!=typeof module?module.exports=e():"function"==typeof define&&define.amd?define([],e):("undefined"!=typeof window?window:"undefined"!=typeof global?global:"undefined"!=typeof self?self:this).earcut=e()}(function(){return function r(x,i,u){function f(n,e){if(!i[n]){if(!x[n]){var t="function"==typeof require&&require;if(!e&&t)return t(n,!0);if(o)return o(n,!0);throw(e=new Error("Cannot find module '"+n+"'")).code="MODULE_NOT_FOUND",e}t=i[n]={exports:{}},x[n][0].call(t.exports,function(e){return f(x[n][1][e]||e)},t,t.exports,r,x,i,u)}return i[n].exports}for(var o="function"==typeof require&&require,e=0;e<u.length;e++)f(u[e]);return f}({1:[function(e,n,t){"use strict";function r(e,n,t){t=t||2;var r,x,i,u,f,o=n&&n.length,v=o?n[0]*t:e.length,p=s(e,0,v,t,!0),y=[];if(p&&p.next!==p.prev){if(o&&(p=function(e,n,t,r){var x,i,u,f,o=[];for(x=0,i=n.length;x<i;x++)f=n[x]*r,u=x<i-1?n[x+1]*r:e.length,(f=s(e,f,u,r,!1))===f.next&&(f.steiner=!0),o.push(function(e){var n=e,t=e;for(;(n.x<t.x||n.x===t.x&&n.y<t.y)&&(t=n),n=n.next,n!==e;);return t}(f));for(o.sort(c),x=0;x<o.length;x++)t=function(e,n){var t=function(e,n){var t,r=n,x=e.x,i=e.y,u=-1/0;do{if(i<=r.y&&i>=r.next.y&&r.next.y!==r.y){var f=r.x+(i-r.y)*(r.next.x-r.x)/(r.next.y-r.y);if(f<=x&&u<f&&(u=f,t=r.x<r.next.x?r:r.next,f===x))return t}}while(r=r.next,r!==n);if(!t)return null;var o,v=t,p=t.x,y=t.y,a=1/0;r=t;for(;x>=r.x&&r.x>=p&&x!==r.x&&D(i<y?x:u,i,p,y,i<y?u:x,i,r.x,r.y)&&(o=Math.abs(i-r.y)/(x-r.x),_(r,e)&&(o<a||o===a&&(r.x>t.x||r.x===t.x&&function(e,n){return E(e.prev,e,n.prev)<0&&E(n.next,e,e.next)<0}(t,r)))&&(t=r,a=o)),r=r.next,r!==v;);return t}(e,n);if(!t)return n;n=j(t,e);return q(n,n.next),q(t,t.next)}(o[x],t);return t}(e,n,p,t)),e.length>80*t){for(var a=r=e[0],l=x=e[1],h=t;h<v;h+=t)(i=e[h])<a&&(a=i),(u=e[h+1])<l&&(l=u),r<i&&(r=i),x<u&&(x=u);f=0!==(f=Math.max(r-a,x-l))?32767/f:0}O(p,y,t,a,l,f,0)}return y}function s(e,n,t,r,x){var i,u;if(x===0<d(e,n,t,r))for(i=n;i<t;i+=r)u=f(i,e[i],e[i+1],u);else for(i=t-r;n<=i;i-=r)u=f(i,e[i],e[i+1],u);return u&&N(u,u.next)&&(C(u),u=u.next),u}function q(e,n){if(!e)return e;n=n||e;var t,r=e;do{if(t=!1,r.steiner||!N(r,r.next)&&0!==E(r.prev,r,r.next))r=r.next;else{if(C(r),(r=n=r.prev)===r.next)break;t=!0}}while(t||r!==n);return n}function O(e,n,t,r,x,i,u){if(e){if(!u&&i){for(var f=e,o=r,v=x,p=i,y=f;0===y.z&&(y.z=k(y.x,y.y,o,v,p)),y.prevZ=y.prev,y.nextZ=y.next,(y=y.next)!==f;);y.prevZ.nextZ=null,y.prevZ=null;var a,l,h,s,c,d,Z,g,w=y,M=1;do{for(l=w,c=w=null,d=0;l;){for(d++,h=l,a=Z=0;a<M&&(Z++,h=h.nextZ);a++);for(g=M;0<Z||0<g&&h;)0!==Z&&(0===g||!h||l.z<=h.z)?(l=(s=l).nextZ,Z--):(h=(s=h).nextZ,g--),c?c.nextZ=s:w=s,s.prevZ=c,c=s;l=h}}while(c.nextZ=null,M*=2,1<d)}for(var b,m,z=e;e.prev!==e.next;)if(b=e.prev,m=e.next,i?function(e,n,t,r){var x=e.prev,i=e,u=e.next;if(0<=E(x,i,u))return;var f=x.x,o=i.x,v=u.x,p=x.y,y=i.y,a=u.y,l=f<o?f<v?f:v:o<v?o:v,h=p<y?p<a?p:a:y<a?y:a,s=o<f?v<f?f:v:v<o?o:v,c=y<p?a<p?p:a:a<y?y:a,d=k(l,h,n,t,r),Z=k(s,c,n,t,r),g=e.prevZ,w=e.nextZ;for(;g&&g.z>=d&&w&&w.z<=Z;){if(g.x>=l&&g.x<=s&&g.y>=h&&g.y<=c&&g!==x&&g!==u&&D(f,p,o,y,v,a,g.x,g.y)&&0<=E(g.prev,g,g.next))return;if(g=g.prevZ,w.x>=l&&w.x<=s&&w.y>=h&&w.y<=c&&w!==x&&w!==u&&D(f,p,o,y,v,a,w.x,w.y)&&0<=E(w.prev,w,w.next))return;w=w.nextZ}for(;g&&g.z>=d;){if(g.x>=l&&g.x<=s&&g.y>=h&&g.y<=c&&g!==x&&g!==u&&D(f,p,o,y,v,a,g.x,g.y)&&0<=E(g.prev,g,g.next))return;g=g.prevZ}for(;w&&w.z<=Z;){if(w.x>=l&&w.x<=s&&w.y>=h&&w.y<=c&&w!==x&&w!==u&&D(f,p,o,y,v,a,w.x,w.y)&&0<=E(w.prev,w,w.next))return;w=w.nextZ}return 1}(e,r,x,i):function(e){var n=e.prev,t=e,e=e.next;if(0<=E(n,t,e))return;var r=n.x,x=t.x,i=e.x,u=n.y,f=t.y,o=e.y,v=r<x?r<i?r:i:x<i?x:i,p=u<f?u<o?u:o:f<o?f:o,y=x<r?i<r?r:i:i<x?x:i,a=f<u?o<u?u:o:o<f?f:o,l=e.next;for(;l!==n;){if(l.x>=v&&l.x<=y&&l.y>=p&&l.y<=a&&D(r,u,x,f,i,o,l.x,l.y)&&0<=E(l.prev,l,l.next))return;l=l.next}return 1}(e))n.push(b.i/t|0),n.push(e.i/t|0),n.push(m.i/t|0),C(e),e=m.next,z=m.next;else if((e=m)===z){u?1===u?O(e=function(e,n,t){var r=e;do{var x=r.prev,i=r.next.next}while(!N(x,i)&&U(x,r,r.next,i)&&_(x,i)&&_(i,x)&&(n.push(x.i/t|0),n.push(r.i/t|0),n.push(i.i/t|0),C(r),C(r.next),r=e=i),r=r.next,r!==e);return q(r)}(q(e),n,t),n,t,r,x,i,2):2===u&&function(e,n,t,r,x,i){var u=e;do{for(var f,o=u.next.next;o!==u.prev;){if(u.i!==o.i&&function(e,n){return e.next.i!==n.i&&e.prev.i!==n.i&&!function(e,n){var t=e;do{if(t.i!==e.i&&t.next.i!==e.i&&t.i!==n.i&&t.next.i!==n.i&&U(t,t.next,e,n))return 1}while(t=t.next,t!==e);return}(e,n)&&(_(e,n)&&_(n,e)&&function(e,n){var t=e,r=!1,x=(e.x+n.x)/2,i=(e.y+n.y)/2;for(;t.y>i!=t.next.y>i&&t.next.y!==t.y&&x<(t.next.x-t.x)*(i-t.y)/(t.next.y-t.y)+t.x&&(r=!r),t=t.next,t!==e;);return r}(e,n)&&(E(e.prev,e,n.prev)||E(e,n.prev,n))||N(e,n)&&0<E(e.prev,e,e.next)&&0<E(n.prev,n,n.next))}(u,o))return f=j(u,o),u=q(u,u.next),f=q(f,f.next),O(u,n,t,r,x,i,0),O(f,n,t,r,x,i,0);o=o.next}}while(u=u.next,u!==e)}(e,n,t,r,x,i):O(q(e),n,t,r,x,i,1);break}}}function c(e,n){return e.x-n.x}function k(e,n,t,r,x){return(e=1431655765&((e=858993459&((e=252645135&((e=16711935&((e=(e-t)*x|0)|e<<8))|e<<4))|e<<2))|e<<1))|(n=1431655765&((n=858993459&((n=252645135&((n=16711935&((n=(n-r)*x|0)|n<<8))|n<<4))|n<<2))|n<<1))<<1}function D(e,n,t,r,x,i,u,f){return(e-u)*(i-f)<=(x-u)*(n-f)&&(t-u)*(n-f)<=(e-u)*(r-f)&&(x-u)*(r-f)<=(t-u)*(i-f)}function E(e,n,t){return(n.y-e.y)*(t.x-n.x)-(n.x-e.x)*(t.y-n.y)}function N(e,n){return e.x===n.x&&e.y===n.y}function U(e,n,t,r){var x=v(E(e,n,t)),i=v(E(e,n,r)),u=v(E(t,r,e)),f=v(E(t,r,n));return x!==i&&u!==f||(0===x&&o(e,t,n)||(0===i&&o(e,r,n)||(0===u&&o(t,e,r)||!(0!==f||!o(t,n,r)))))}function o(e,n,t){return n.x<=Math.max(e.x,t.x)&&n.x>=Math.min(e.x,t.x)&&n.y<=Math.max(e.y,t.y)&&n.y>=Math.min(e.y,t.y)}function v(e){return 0<e?1:e<0?-1:0}function _(e,n){return E(e.prev,e,e.next)<0?0<=E(e,n,e.next)&&0<=E(e,e.prev,n):E(e,n,e.prev)<0||E(e,e.next,n)<0}function j(e,n){var t=new u(e.i,e.x,e.y),r=new u(n.i,n.x,n.y),x=e.next,i=n.prev;return(e.next=n).prev=e,(t.next=x).prev=t,(r.next=t).prev=r,(i.next=r).prev=i,r}function f(e,n,t,r){e=new u(e,n,t);return r?(e.next=r.next,(e.prev=r).next.prev=e,r.next=e):(e.prev=e).next=e,e}function C(e){e.next.prev=e.prev,e.prev.next=e.next,e.prevZ&&(e.prevZ.nextZ=e.nextZ),e.nextZ&&(e.nextZ.prevZ=e.prevZ)}function u(e,n,t){this.i=e,this.x=n,this.y=t,this.prev=null,this.next=null,this.z=0,this.prevZ=null,this.nextZ=null,this.steiner=!1}function d(e,n,t,r){for(var x=0,i=n,u=t-r;i<t;i+=r)x+=(e[u]-e[i])*(e[i+1]+e[u+1]),u=i;return x}n.exports=r,(n.exports.default=r).deviation=function(e,n,t,r){var x=n&&n.length,i=x?n[0]*t:e.length,u=Math.abs(d(e,0,i,t));if(x)for(var f=0,o=n.length;f<o;f++){var v=n[f]*t,p=f<o-1?n[f+1]*t:e.length;u-=Math.abs(d(e,v,p,t))}for(var y=0,f=0;f<r.length;f+=3){var a=r[f]*t,l=r[f+1]*t,h=r[f+2]*t;y+=Math.abs((e[a]-e[h])*(e[1+l]-e[1+a])-(e[a]-e[l])*(e[1+h]-e[1+a]))}return 0===u&&0===y?0:Math.abs((y-u)/u)},r.flatten=function(e){for(var n=e[0][0].length,t={vertices:[],holes:[],dimensions:n},r=0,x=0;x<e.length;x++){for(var i=0;i<e[x].length;i++)for(var u=0;u<n;u++)t.vertices.push(e[x][i][u]);0<x&&(r+=e[x-1].length,t.holes.push(r))}return t}},{}]},{},[1])(1)});
+</script>
+<script>/* Polysmith geometry engine — pure functions, no DOM. All lengths in mm. 2D coords are y-up. */
+(function (G) {
+'use strict';
+const PHI = (1 + Math.sqrt(5)) / 2, TAU = Math.PI * 2;
+
+/* ---------- vectors ---------- */
+const V = {
+  add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]],
+  sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]],
+  mul: (a, s) => [a[0] * s, a[1] * s, a[2] * s],
+  dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
+  cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
+  len: a => Math.hypot(a[0], a[1], a[2]),
+};
+V.norm = a => V.mul(a, 1 / V.len(a));
+const P2 = {
+  add: (a, b) => [a[0] + b[0], a[1] + b[1]],
+  sub: (a, b) => [a[0] - b[0], a[1] - b[1]],
+  mul: (a, s) => [a[0] * s, a[1] * s],
+  dot: (a, b) => a[0] * b[0] + a[1] * b[1],
+  len: a => Math.hypot(a[0], a[1]),
+  rot: (a, t) => [a[0] * Math.cos(t) - a[1] * Math.sin(t), a[0] * Math.sin(t) + a[1] * Math.cos(t)],
+};
+
+/* ---------- solids ---------- */
+const INFO = {
+  tetra: { name: 'Tetrahedron', die: 'd4', sides: 3, faces: 4 },
+  cube: { name: 'Cube', die: 'd6', sides: 4, faces: 6 },
+  octa: { name: 'Octahedron', die: 'd8', sides: 3, faces: 8 },
+  dodeca: { name: 'Dodecahedron', die: 'd12', sides: 5, faces: 12 },
+  icosa: { name: 'Icosahedron', die: 'd20', sides: 3, faces: 20 },
+};
+function rawVerts(id) {
+  const v = [];
+  if (id === 'tetra') v.push([1, 1, 1], [1, -1, -1], [-1, 1, -1], [-1, -1, 1]);
+  else if (id === 'cube') { for (const x of [-1, 1]) for (const y of [-1, 1]) for (const z of [-1, 1]) v.push([x, y, z]); }
+  else if (id === 'octa') v.push([1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]);
+  else if (id === 'icosa') { for (const a of [-1, 1]) for (const b of [-PHI, PHI]) v.push([0, a, b], [a, b, 0], [b, 0, a]); }
+  else if (id === 'dodeca') {
+    for (const x of [-1, 1]) for (const y of [-1, 1]) for (const z of [-1, 1]) v.push([x, y, z]);
+    for (const a of [-1 / PHI, 1 / PHI]) for (const b of [-PHI, PHI]) v.push([0, a, b], [a, b, 0], [b, 0, a]);
+  }
+  return v;
+}
+const ekey = (a, b) => a < b ? a + '-' + b : b + '-' + a;
+const solidCache = {};
+function solid(id) {
+  if (solidCache[id]) return solidCache[id];
+  const n = INFO[id].sides;
+  let vs = rawVerts(id);
+  let md = Infinity;
+  for (let i = 0; i < vs.length; i++) for (let j = i + 1; j < vs.length; j++) md = Math.min(md, V.len(V.sub(vs[i], vs[j])));
+  vs = vs.map(v => V.mul(v, 1 / md)); // unit edge
+  const faces = [], seen = new Set();
+  for (let i = 0; i < vs.length; i++) for (let j = i + 1; j < vs.length; j++) for (let k = j + 1; k < vs.length; k++) {
+    let nn = V.cross(V.sub(vs[j], vs[i]), V.sub(vs[k], vs[i]));
+    const l = V.len(nn); if (l < 1e-9) continue;
+    nn = V.mul(nn, 1 / l);
+    let d = V.dot(nn, vs[i]); if (d < 0) { nn = V.mul(nn, -1); d = -d; }
+    if (d < 1e-6) continue;
+    let ok = true; const on = [];
+    for (let m = 0; m < vs.length; m++) { const e = V.dot(nn, vs[m]) - d; if (e > 1e-6) { ok = false; break; } if (e > -1e-6) on.push(m); }
+    if (!ok || on.length !== n) continue;
+    const key = on.slice().sort((a, b) => a - b).join(',');
+    if (seen.has(key)) continue; seen.add(key);
+    let c = [0, 0, 0]; on.forEach(m => { c = V.add(c, vs[m]); }); c = V.mul(c, 1 / n);
+    const e1 = V.norm(V.sub(vs[on[0]], c)), e2 = V.cross(nn, e1);
+    const ang = m => { const r = V.sub(vs[m], c); return Math.atan2(V.dot(r, e2), V.dot(r, e1)); };
+    on.sort((p, q) => ang(p) - ang(q));
+    faces.push({ v: on, n: nn, c });
+  }
+  const edgeMap = {}, edges = [];
+  faces.forEach((f, fi) => f.v.forEach((a, i) => {
+    const b = f.v[(i + 1) % n], k = ekey(a, b);
+    if (!edgeMap[k]) { edgeMap[k] = { a, b, faces: [] }; edges.push(edgeMap[k]); }
+    edgeMap[k].faces.push(fi);
+  }));
+  const e0 = edges[0];
+  const dihedral = Math.PI - Math.acos(Math.max(-1, Math.min(1, V.dot(faces[e0.faces[0]].n, faces[e0.faces[1]].n))));
+  const R = V.len(vs[0]), r = V.dot(faces[0].n, faces[0].c);
+  let height = 0; vs.forEach(v => { height = Math.max(height, r - V.dot(v, faces[0].n)); });
+  const S = { id, ...INFO[id], verts: vs, faces, edges, edgeMap, dihedral, R, r, rm: V.len(V.mul(V.add(vs[e0.a], vs[e0.b]), 0.5)), height };
+  solidCache[id] = S;
+  return S;
+}
+
+/* ---------- 2D polygon helpers ---------- */
+function area(p) { let s = 0; for (let i = 0; i < p.length; i++) { const a = p[i], b = p[(i + 1) % p.length]; s += a[0] * b[1] - b[0] * a[1]; } return s / 2; }
+function ccw(p) { return area(p) < 0 ? p.slice().reverse() : p; }
+function lineX(a1, u1, a2, u2) {
+  const den = u1[0] * u2[1] - u1[1] * u2[0];
+  if (Math.abs(den) < 1e-12) return null;
+  const s = ((a2[0] - a1[0]) * u2[1] - (a2[1] - a1[1]) * u2[0]) / den;
+  return [a1[0] + s * u1[0], a1[1] + s * u1[1]];
+}
+/* miter offset; d>0 grows a CCW polygon */
+function offset(pts, d) {
+  if (!d) return pts.map(p => p.slice());
+  const p = ccw(pts), n = p.length, out = [];
+  const lines = p.map((a, i) => {
+    const b = p[(i + 1) % n], u = P2.sub(b, a), l = P2.len(u), un = [u[0] / l, u[1] / l];
+    const no = [un[1], -un[0]];
+    return { a: P2.add(a, P2.mul(no, d)), u: un, no };
+  });
+  for (let i = 0; i < n; i++) {
+    const L0 = lines[(i - 1 + n) % n], L1 = lines[i];
+    let x = lineX(L0.a, L0.u, L1.a, L1.u);
+    if (!x || P2.len(P2.sub(x, p[i])) > Math.abs(d) * 6) x = P2.add(p[i], P2.mul(L1.no, d));
+    out.push(x);
+  }
+  return out;
+}
+function centroid(p) { let x = 0, y = 0; p.forEach(q => { x += q[0]; y += q[1]; }); return [x / p.length, y / p.length]; }
+function shrink(p, e) { const c = centroid(p); return p.map(q => { const v = P2.sub(q, c), l = P2.len(v); return l < e ? c : P2.add(c, P2.mul(v, (l - e) / l)); }); }
+/* convex polygon overlap (SAT) */
+function overlap(A, B) {
+  for (const P of [A, B]) {
+    for (let i = 0; i < P.length; i++) {
+      const a = P[i], b = P[(i + 1) % P.length], ax = [b[1] - a[1], a[0] - b[0]];
+      let mnA = Infinity, mxA = -Infinity, mnB = Infinity, mxB = -Infinity;
+      A.forEach(q => { const v = P2.dot(q, ax); mnA = Math.min(mnA, v); mxA = Math.max(mxA, v); });
+      B.forEach(q => { const v = P2.dot(q, ax); mnB = Math.min(mnB, v); mxB = Math.max(mxB, v); });
+      if (mxA <= mnB + 1e-9 || mxB <= mnA + 1e-9) return false;
+    }
+  }
+  return true;
+}
+function bbox(polys) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  polys.forEach(p => p.forEach(q => { x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]); }));
+  return { x0, y0, x1, y1, w: x1 - x0, h: y1 - y0 };
+}
+function circle(c, r, seg) { const o = []; for (let i = 0; i < seg; i++) { const t = i / seg * TAU; o.push([c[0] + r * Math.cos(t), c[1] + r * Math.sin(t)]); } return o; }
+function perim(pl) { let s = 0; const n = pl.pts.length, m = pl.closed ? n : n - 1; for (let i = 0; i < m; i++) s += P2.len(P2.sub(pl.pts[(i + 1) % n], pl.pts[i])); return s; }
+/* regular n-gon by apothem, one edge at bottom, CCW */
+function ngon(n, ap) {
+  const rc = ap / Math.cos(Math.PI / n), o = [];
+  for (let k = 0; k < n; k++) { const t = -Math.PI / 2 - Math.PI / n + k * TAU / n; o.push([rc * Math.cos(t), rc * Math.sin(t)]); }
+  return o;
+}
+
+/* ---------- single-stroke digit font (y-up, box 0.6 x 1) ---------- */
+function ell(cx, cy, rx, ry, seg, a0 = 0, a1 = TAU) { const o = []; for (let i = 0; i <= seg; i++) { const t = a0 + (a1 - a0) * i / seg; o.push([cx + rx * Math.cos(t), cy + ry * Math.sin(t)]); } return o; }
+const SIX = [[0.55, 0.95], [0.35, 1], [0.15, 0.94], [0.04, 0.72], [0, 0.4], [0.04, 0.14], [0.3, 0], [0.54, 0.1], [0.6, 0.3], [0.52, 0.5], [0.3, 0.58], [0.1, 0.52], [0.02, 0.4]];
+const FONT = {
+  '0': [ell(0.3, 0.5, 0.3, 0.5, 20)],
+  '1': [[[0.12, 0.78], [0.32, 1], [0.32, 0]], [[0.12, 0], [0.52, 0]]],
+  '2': [[[0.02, 0.78], [0.1, 0.94], [0.3, 1], [0.5, 0.94], [0.6, 0.76], [0.55, 0.58], [0, 0], [0.6, 0]]],
+  '3': [[[0.02, 0.9], [0.17, 1], [0.44, 1], [0.58, 0.88], [0.58, 0.66], [0.44, 0.54], [0.2, 0.54]], [[0.44, 0.54], [0.6, 0.42], [0.6, 0.12], [0.45, 0], [0.15, 0], [0, 0.1]]],
+  '4': [[[0.45, 0], [0.45, 1], [0, 0.3], [0.6, 0.3]]],
+  '5': [[[0.56, 1], [0.08, 1], [0.03, 0.56], [0.3, 0.62], [0.52, 0.54], [0.6, 0.32], [0.54, 0.1], [0.34, 0], [0.12, 0], [0, 0.1]]],
+  '6': [SIX],
+  '7': [[[0, 1], [0.6, 1], [0.18, 0]]],
+  '8': [ell(0.3, 0.76, 0.24, 0.24, 18), ell(0.3, 0.27, 0.3, 0.27, 20)],
+  '9': [SIX.map(p => [0.6 - p[0], 1 - p[1]])],
+  '-': [[[0.08, 0.5], [0.52, 0.5]]],
+  '+': [[[0.06, 0.5], [0.54, 0.5]], [[0.3, 0.26], [0.3, 0.74]]],
+  '.': [[[0.24, 0], [0.36, 0], [0.36, 0.1], [0.24, 0.1], [0.24, 0]]],
+  '_': [[[0, -0.16], [0.6, -0.16]]],
+};
+/* returns open polylines centered at c, height h, rotated by ang */
+function text(str, c, h, ang = 0) {
+  const adv = 0.85, chars = str.split(''), wid = chars.reduce((s, ch) => s + (ch === '.' ? 0.45 : adv), 0) - (adv - 0.6);
+  let x = -wid / 2; const out = [];
+  chars.forEach(ch => {
+    (FONT[ch] || []).forEach(pl => out.push({ pts: pl.map(p => { const q = P2.rot([(p[0] + x) * h, (p[1] - 0.5) * h], ang); return [q[0] + c[0], q[1] + c[1]]; }), closed: false }));
+    x += ch === '.' ? 0.45 : adv;
+  });
+  return out;
+}
+
+/* ---------- panel construction ---------- */
+function bracketFrame(S, L, perEdgeX) {
+  /* 3D placement data for brackets, used by preview */
+  return S.edges.map(e => {
+    const A = V.mul(S.verts[e.a], L), B = V.mul(S.verts[e.b], L);
+    const m = V.mul(V.add(A, B), 0.5), ed = V.norm(V.sub(B, A)), y = V.mul(V.norm(m), -1);
+    const cB = V.mul(S.faces[e.faces[1]].c, L);
+    let uB = V.norm(V.sub(cB, m)); uB = V.norm(V.sub(uB, V.mul(y, V.dot(uB, y))));
+    return perEdgeX.map(x => ({ M: V.add(m, V.mul(ed, x)), x: uB, y }));
+  });
+}
+
+function panels(p) {
+  const S = solid(p.solid), n = S.sides, L = p.L, t = p.t, k = p.kerf, fit = p.fit;
+  const warn = [], h = S.dihedral / 2;
+  const s = t / Math.tan(h), a = L / (2 * Math.tan(Math.PI / n)), ap = a - s, Lp = 2 * ap * Math.tan(Math.PI / n);
+  if (ap < 3 * t) { warn.push({ lvl: 'err', msg: 'This solid is too small for this material thickness. Make it bigger or use thinner stock.' }); }
+  const joint = p.joint;
+  if (joint === 'finger') return fingerPanels(p, S);
+  let per = joint === 'none' ? 0 : p.perEdge;
+  let w = p.tabLen > 0 ? p.tabLen : Math.max(3 * t, 6), g = Math.max(1.25 * t, 2), tail = Math.max(t, 2);
+  if (joint === 'block') { g = Math.max(0.6 * t, 1); w = p.tabLen > 0 ? p.tabLen : Math.max(4 * t, 8); }
+  const xsFor = q => q === 1 ? [0] : q === 2 ? [-0.24 * Lp, 0.24 * Lp] : q === 3 ? [-0.3 * Lp, 0, 0.3 * Lp] : [];
+  let xs = xsFor(per);
+  const halfW = t / 2 + Math.max(0.6 * t, 1);
+  const frame = kE => { const ph = -Math.PI / 2 + kE * TAU / n, o = [Math.cos(ph), Math.sin(ph)], tg = [-o[1], o[0]]; return (x, d) => [ap * o[0] + x * tg[0] - d * o[0], ap * o[1] + x * tg[1] - d * o[1]]; };
+  const frames = []; for (let i = 0; i < n; i++) frames.push(frame(i));
+  function feasible(D, X) {
+    if (D > 0.9 * ap) return false;
+    for (const x of X) if (Math.abs(x) + halfW > Lp / 2 * 0.92) return false;
+    const R = [];
+    frames.forEach(F => X.forEach(x => R.push([F(x - halfW, 0), F(x + halfW, 0), F(x + halfW, D), F(x - halfW, D)])));
+    for (let i = 0; i < R.length; i++) for (let j = i + 1; j < R.length; j++) if (overlap(R[i], R[j])) return false;
+    return true;
+  }
+  let D = g + w + tail, scaled = 1;
+  if (per > 0 && !feasible(D, xs)) {
+    let lo = 0, hi = 1;
+    for (let it = 0; it < 32; it++) { const mid = (lo + hi) / 2; if (feasible(D * mid, xs)) lo = mid; else hi = mid; }
+    scaled = lo; w *= lo; g *= lo; tail *= lo; D = g + w + tail;
+    if (lo === 0) { warn.push({ lvl: 'err', msg: `${per} brackets per edge won't fit at this size. Try fewer brackets per edge, a bigger solid, or thinner stock.` }); per = 0; xs = []; }
+    else if (joint === 'tab' && w < 1.5 * t) warn.push({ lvl: 'warn', msg: `Brackets had to shrink to fit (tab ${w.toFixed(1)} mm). They'll be fragile. A bigger solid or thinner stock works better.` });
+    else warn.push({ lvl: 'info', msg: `Tabs were shortened to ${w.toFixed(1)} mm so neighbouring brackets don't collide inside.` });
+  }
+  const u1 = g, u2 = g + w;
+
+  /* face plate */
+  const outline = offset(ngon(n, ap), k / 2);
+  const holes = [];
+  if (joint === 'tab' && per > 0) {
+    const sw = (t + fit - k) / 2, sl0 = u1 - (fit - k) / 2, sl1 = u2 + (fit - k) / 2;
+    frames.forEach(F => xs.forEach(x => holes.push([F(x - sw, sl0), F(x - sw, sl1), F(x + sw, sl1), F(x + sw, sl0)])));
+  }
+  const freeAp = per > 0 ? ap - D - Math.max(t, 2.5) : ap - Math.max(2 * t, 4);
+  if (p.window !== 'none') {
+    if (freeAp < 3) warn.push({ lvl: 'warn', msg: 'Not enough room for a face window at this size.' });
+    else {
+      const wa = Math.max(1.5, freeAp * p.windowPct / 100);
+      if (p.window === 'circle') holes.push(circle([0, 0], wa - k / 2, 96));
+      else if (p.window === 'poly') holes.push(offset(ngon(n, wa), -k / 2));
+      else if (p.window === 'star') {
+        const pts = [], m = n === 3 ? 6 : n, ro = wa / Math.cos(Math.PI / n) * 0.98, ri = ro * (n === 4 ? 0.45 : 0.42);
+        for (let i = 0; i < 2 * m; i++) { const r = i % 2 ? ri : ro, th = -Math.PI / 2 - Math.PI / n + i * Math.PI / m; pts.push([r * Math.cos(th), r * Math.sin(th)]); }
+        holes.push(offset(pts, -k / 2));
+      }
+    }
+  }
+  const faceParts = [];
+  const numH = Math.min(freeAp * 0.9, ap * 0.55);
+  const facePart = num => {
+    const cuts = [{ pts: outline, closed: true }, ...holes.map(hh => ({ pts: hh, closed: true }))], marks = [];
+    if (num) { marks.push(...text(String(num), [0, numH * 0.02], numH)); if (num === 6 || num === 9) marks.push(...text('_', [0, numH * 0.02], numH)); }
+    return { name: 'Face' + (num ? ' ' + num : ''), cuts, marks, scores: [], tri: n === 3, count: num ? 1 : S.faces.length };
+  };
+  if (p.dice && p.window === 'none' && numH > 4) { for (let i = 1; i <= S.faces.length; i++) faceParts.push(facePart(i)); }
+  else { if (p.dice) warn.push({ lvl: 'info', msg: 'Dice numbers need the face window turned off and enough clear space.' }); faceParts.push(facePart(0)); }
+
+  /* bracket (cross-section plane): y = inward bisector, x toward face B */
+  const uA = [-Math.sin(h), Math.cos(h)], nA = [Math.cos(h), Math.sin(h)], uB = [Math.sin(h), Math.cos(h)], nB = [-Math.cos(h), Math.sin(h)];
+  const Pc = [0, t / Math.sin(h)], T = t + (p.protrude || 0);
+  const iA = u => P2.add(Pc, P2.mul(uA, u)), iB = u => P2.add(Pc, P2.mul(uB, u));
+  const e = Math.min(0.5 * t, g * 0.5);
+  let br = null;
+  if (joint === 'tab' && per > 0) {
+    br = [iA(e), iA(u1), P2.sub(iA(u1), P2.mul(nA, T)), P2.sub(iA(u2), P2.mul(nA, T)), iA(u2), iA(D), iB(D), iB(u2), P2.sub(iB(u2), P2.mul(nB, T)), P2.sub(iB(u1), P2.mul(nB, T)), iB(u1), iB(e)];
+  } else if (joint === 'block' && per > 0) {
+    br = [iA(e), iA(D), iB(D), iB(e)];
+  }
+  const parts = [...faceParts];
+  if (br) {
+    br = ccw(br);
+    const brK = offset(br, k / 2);
+    parts.push({ name: joint === 'tab' ? 'Bracket' : 'Angle block', cuts: [{ pts: brK, closed: true }], marks: [], scores: [], count: S.edges.length * per });
+  }
+  let jig = null;
+  if (joint !== 'tab') {
+    const Dn = Math.min(0.7 * ap, 35), H = Dn / Math.tan(h) + 14;
+    const QA = P2.mul(uA, Dn), QB = P2.mul(uB, Dn);
+    jig = ccw([QA, [0, 0], QB, P2.sub(QB, P2.mul(nB, H)), P2.sub(QA, P2.mul(nA, H))]);
+    parts.push({ name: 'Angle jig', cuts: [{ pts: offset(jig, k / 2), closed: true }], marks: text(Math.round(S.dihedral * 180 / Math.PI * 10) / 10 + '', [0, -H * 0.35 + Dn * Math.cos(h) * 0.3], Math.min(6, H * 0.15)), scores: [], count: 2 });
+  }
+  return {
+    parts, warn,
+    info: { s, a, ap, Lp, D, w, g, per, xs, br, jig, dihedral: S.dihedral, n, scaled },
+  };
+}
+
+/* ---------- finger joints ---------- */
+/* Plate outline (2D, ideal-face coords, apothem a; depth 0 = ideal outer edge).
+   Every face uses the same pattern: an even number of fingers per edge, with fingers at even
+   positions counted from each edge's CCW start vertex, so all faces are identical. */
+function fingerGeom(S, L, t, o) {
+  const n = S.sides, d = S.dihedral, h = d / 2, clr = o.depthClr || 0, bevel = o.style === 'bevel';
+  // z = depth from the OUTER surface. Tip on the neighbour's outer plane, notch bottom on its inner plane.
+  const Uz = z => z / Math.tan(d), vz = z => (t + z * Math.cos(d)) / Math.sin(d) + clr;
+  let U, v, U0, Ut, v0, vt;
+  if (bevel) { U0 = 0; Ut = Uz(t); v0 = vz(0); vt = vz(t); U = Math.min(U0, Ut); v = Math.min(v0, vt); }
+  else { U = o.style === 'full' ? Math.min(0, t / Math.tan(d)) : Math.max(0, t / Math.tan(d)); v = Math.max(t / Math.sin(d), t / Math.tan(h)) + clr; }
+  const vMax = bevel ? Math.max(v0, vt) : v;
+  const alpha = Math.PI - TAU / n, c0 = vMax / Math.tan(alpha / 2), span = L - 2 * c0;
+  const fwT = o.fingerW > 0 ? o.fingerW : Math.max(2.5 * t, 6);
+  const N = Math.max(2, 2 * Math.round(span / (2 * fwT)));
+  const w = span / N, fit = o.fit || 0;
+  const a = L / (2 * Math.tan(Math.PI / n)), Vt = ngon(n, a);
+  const E = [];
+  for (let k = 0; k < n; k++) {
+    const A = Vt[k], B = Vt[(k + 1) % n], dv = P2.sub(B, A), l = P2.len(dv), dir = [dv[0] / l, dv[1] / l];
+    E.push({ mid: P2.mul(P2.add(A, B), 0.5), dir, inn: [-dir[1], dir[0]] });
+  }
+  const pt = (k, x, dd) => P2.add(P2.add(E[k].mid, P2.mul(E[k].dir, x)), P2.mul(E[k].inn, dd));
+  // boundaries between N segments (first = finger); fingers narrowed by fit. kind: 'fn' = finger->notch
+  const bnd = [];
+  for (let i = 1; i < N; i++) { const x = -span / 2 + i * w; bnd.push(i % 2 === 1 ? { x: x - fit / 2, kind: 'fn' } : { x: x + fit / 2, kind: 'nf' }); }
+  const build = (Uu, vv) => {
+    const poly = [];
+    for (let k = 0; k < n; k++) {
+      const pk = (k - 1 + n) % n;
+      poly.push(lineX(pt(pk, 0, vv), E[pk].dir, pt(k, 0, vv), E[k].dir)); // inner corner
+      poly.push(lineX(pt(pk, 0, vv), E[pk].dir, pt(k, 0, Uu), E[k].dir)); // foot of first finger
+      bnd.forEach(b => { if (b.kind === 'fn') poly.push(pt(k, b.x, Uu), pt(k, b.x, vv)); else poly.push(pt(k, b.x, vv), pt(k, b.x, Uu)); });
+    }
+    return poly;
+  };
+  const out = { poly: build(U, v), U, v, N, w, a, relief: 0, span, bnd, E, n };
+  if (bevel) {
+    Object.assign(out, { bevel: true, U0, Ut, v0, vt, vMax, outer: build(U0, v0), inner: build(Ut, vt) });
+    out.slits = [];
+    if (vMax - v > 1e-6) for (let k = 0; k < n; k++) bnd.forEach(b => out.slits.push([pt(k, b.x, v), pt(k, b.x, vMax)]));
+  }
+  return out;
+}
+
+function windowHoles(p, n, freeAp, k, warn) {
+  const holes = [];
+  if (p.window === 'none') return holes;
+  if (freeAp < 3) { warn.push({ lvl: 'warn', msg: 'Not enough room for a face window at this size.' }); return holes; }
+  const wa = Math.max(1.5, freeAp * p.windowPct / 100);
+  if (p.window === 'circle') holes.push(circle([0, 0], wa - k / 2, 96));
+  else if (p.window === 'poly') holes.push(offset(ngon(n, wa), -k / 2));
+  else if (p.window === 'star') {
+    const pts = [], m = n === 3 ? 6 : n, ro = wa / Math.cos(Math.PI / n) * 0.98, ri = ro * (n === 4 ? 0.45 : 0.42);
+    for (let i = 0; i < 2 * m; i++) { const r = i % 2 ? ri : ro, th = -Math.PI / 2 - Math.PI / n + i * Math.PI / m; pts.push([r * Math.cos(th), r * Math.sin(th)]); }
+    holes.push(offset(pts, -k / 2));
+  }
+  return holes;
+}
+function fingerPanels(p, S) {
+  const n = S.sides, L = p.L, t = p.t, k = p.kerf, warn = [];
+  const g = fingerGeom(S, L, t, { style: p.fingerStyle, relief: 0, fingerW: p.fingerW, fit: p.fit, depthClr: Math.max(0, p.fit) / 2 });
+  if (g.w < 1.2 * t) warn.push({ lvl: 'warn', msg: `Fingers are only ${g.w.toFixed(1)} mm wide, which is thin for ${t} mm stock. Use wider fingers or a bigger solid.` });
+  if (g.a < 4 * t) warn.push({ lvl: 'err', msg: 'This solid is too small for this material thickness. Make it bigger or use thinner stock.' });
+  if (g.bevel && Math.abs(S.dihedral - Math.PI / 2) < 0.01) warn.push({ lvl: 'info', msg: 'A cube meets at 90°, so bevelled teeth are already square. No jig needed.' });
+  if (p.fingerStyle === 'full' && g.U < -0.05) warn.push({ lvl: 'info', msg: `Full teeth stand ${(-g.U).toFixed(1)} mm proud at the edges. Sand them flush after glue-up for crisp corners.` });
+  const outline = offset(g.poly, k / 2);
+  const freeAp = g.a - (g.vMax || g.v) - Math.max(2 * t, 4);
+  const holes = windowHoles(p, n, freeAp, k, warn);
+  const numH = Math.min(freeAp * 0.9, g.a * 0.55);
+  const facePart = num => {
+    const cuts = [{ pts: outline, closed: true }, ...holes.map(hh => ({ pts: hh, closed: true })), ...(g.slits || []).map(sl => ({ pts: sl, closed: false }))], marks = [];
+    if (num) { marks.push(...text(String(num), [0, 0], numH)); if (num === 6 || num === 9) marks.push(...text('_', [0, 0], numH)); }
+    return { name: 'Face' + (num ? ' ' + num : ''), cuts, marks, scores: [], tri: n === 3 && g.U >= 0, count: num ? 1 : S.faces.length };
+  };
+  const parts = [];
+  if (p.dice && p.window === 'none' && numH > 4) { for (let i = 1; i <= S.faces.length; i++) parts.push(facePart(i)); }
+  else { if (p.dice) warn.push({ lvl: 'info', msg: 'Dice numbers need the face window turned off and enough clear space.' }); parts.push(facePart(0)); }
+  return { parts, warn, info: { finger: g, a: g.a, ap: g.a, per: 0, xs: [], br: null, dihedral: S.dihedral, n } };
+}
+
+/* ---------- bevel jig station ----------
+   Bed frame: x right, y = uphill (toward the back of the machine), z up. Base plate sits on the bed and is
+   cut IN PLACE, in the same file as the bevel lines, so every line is registered to the jig. */
+function clipBelow(poly, sTop) { // keep part with y <= sTop (convex polygon), CCW in, CCW out
+  const out = [];
+  for (let i = 0; i < poly.length; i++) {
+    const A = poly[i], B = poly[(i + 1) % poly.length], ia = A[1] <= sTop, ib = B[1] <= sTop;
+    if (ia) out.push(A);
+    if (ia !== ib) { const tt = (sTop - A[1]) / (B[1] - A[1]); out.push([A[0] + (B[0] - A[0]) * tt, sTop]); }
+  }
+  return out;
+}
+const rect = (x0, y0, x1, y1) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+function jigStation(S, L, t, g, o) {
+  const d = S.dihedral, n = S.sides, F = S.faces.length;
+  if (Math.abs(d - Math.PI / 2) < 0.01) return null;
+  const outerDown = d > Math.PI / 2, phi = Math.abs(d - Math.PI / 2), cph = Math.cos(phi), sph = Math.sin(phi);
+  const k = o.kerf, fit = o.fit, clr = 0.2, a = g.a, Uf = g.U, vMax = g.vMax;
+  const rot = q => [-q[0], -q[1]];
+  // pocket and seating
+  const pocket = ngon(n, a - Uf + clr).map(rot);
+  let cmax = 0;
+  for (let i = 0; i < n; i++) { const A = pocket[i], B = pocket[(i + 1) % n], dv = P2.sub(B, A), l = P2.len(dv), nn = [dv[1] / l, -dv[0] / l]; if (nn[1] < -1e-6) cmax = Math.max(cmax, -nn[1]); }
+  const dSeat = clr / (cmax || 1);
+  let pMin = Infinity, pMax = -Infinity; pocket.forEach(q => { pMin = Math.min(pMin, q[1]); pMax = Math.max(pMax, q[0]); });
+  const sP = 8 - pMin, sC = sP - dSeat, sEdge = sC + a;
+  const m = (t * sph + 1.5) / cph + 1, Dd = sEdge - vMax - m;
+  const wp = 2 * pMax, gap = Math.max(10, t + 8), pitch = wp + gap, mX = t + 12;
+  const Wmax = o.bedW - 30;
+  let K = Math.max(1, Math.min(F, Math.floor((Wmax - 2 * mX + gap) / pitch)));
+  const W = 2 * mX + K * pitch - gap;
+  const xs = []; for (let i = 0; i < K; i++) xs.push(mX + wp / 2 + i * pitch);
+  // ribs: ends + between every 3 pockets
+  const ribX = [6 + t / 2];
+  for (let i = 3; i < K; i += 3) ribX.push(xs[i - 1] + pitch / 2);
+  ribX.push(W - 6 - t / 2);
+  // geometry in the (y,z) side view
+  const hLow = Math.max(10, 2 * t + 4), y0 = 18, z0 = t + hLow;
+  const Bp = sv => [y0 + sv * cph, z0 + sv * sph], nD = [-sph, cph];
+  const tw = Math.min(Math.max(8, 3 * t), Dd * 0.28), s1 = Dd * 0.25, s2 = Dd * 0.72;
+  const Pt = (u, depth) => { const sv = sEdge - u, hh = outerDown ? depth : t - depth; return P2.add(Bp(sv), P2.mul(nD, t + hh)); };
+  const tipA = Pt(0, 0), tipB = Pt(g.Ut, t), nA = Pt(g.v0, 0), nB = Pt(g.vt, t);
+  const Ytip = tipA[0] + k / 2, Ynotch = nA[0] + k / 2;
+  const zTip = (tipA[1] + tipB[1]) / 2, zNotch = (nA[1] + nB[1]) / 2;
+  const planeErr = Math.max(Math.abs(tipA[0] - tipB[0]), Math.abs(nA[0] - nB[0]));
+  // rib profile
+  const yA = Bp(0)[0], yB = Bp(Dd)[0], yb1 = yA + (yB - yA) * 0.25, yb2 = yA + (yB - yA) * 0.75, btw = Math.min(tw, (yB - yA) * 0.3);
+  const ribPoly = [];
+  ribPoly.push([yA, t]);
+  [yb1, yb2].forEach(yc => { ribPoly.push([yc - btw / 2, t], [yc - btw / 2, 0], [yc + btw / 2, 0], [yc + btw / 2, t]); });
+  ribPoly.push([yB, t], Bp(Dd));
+  [s2, s1].forEach(sc => { const a1 = Bp(sc + tw / 2), a2 = Bp(sc - tw / 2); ribPoly.push(a1, P2.add(a1, P2.mul(nD, t)), P2.add(a2, P2.mul(nD, t)), a2); });
+  ribPoly.push(Bp(0));
+  const slotW = (t + fit - k) / 2;
+  // deck floor (x, s) with rib slots
+  const deckCuts = [{ pts: offset(rect(0, 0, W, Dd), k / 2), closed: true }];
+  ribX.forEach(xr => [s1, s2].forEach(sc => deckCuts.push({ pts: rect(xr - slotW, sc - (tw + fit - k) / 2, xr + slotW, sc + (tw + fit - k) / 2), closed: true })));
+  // pocket strip: rectangle with open-topped pockets
+  const strip = [[0, 0], [W, 0], [W, Dd]];
+  for (let i = K - 1; i >= 0; i--) {
+    const P = offset(pocket, -k / 2).map(q => [q[0] + xs[i], q[1] + sP]);
+    const c = ccw(clipBelow(ccw(P), Dd));
+    let j = 0; for (; j < c.length; j++) { const A = c[j], B = c[(j + 1) % c.length]; if (Math.abs(A[1] - Dd) < 1e-6 && Math.abs(B[1] - Dd) < 1e-6) break; }
+    // walk from right-top (c[j]) backwards around the bottom to left-top (c[j+1])
+    for (let q = 0; q < c.length; q++) strip.push(c[(j - q + c.length) % c.length]);
+  }
+  strip.push([0, Dd]);
+  const stripCuts = [{ pts: offset(strip.map(q => q.slice()), k / 2), closed: true }];
+  // station (bed coords): base plate + slots + beam windows, tip & notch lines
+  const ox = 12, bx0 = ox - 8, bx1 = ox + W + 8, by0 = yA - 8, by1 = yB + 2;
+  const base = [{ pts: rect(bx0, by0, bx1, by1), closed: true }];
+  ribX.forEach(xr => [yb1, yb2].forEach(yc => base.push({ pts: rect(ox + xr - slotW, yc - (btw + fit - k) / 2, ox + xr + slotW, yc + (btw + fit - k) / 2), closed: true })));
+  const wy0 = Math.min(Ynotch, nB[0]) - 4, wy1 = Math.min(by1 - 3, Math.max(Ytip, tipB[0]) + 4);
+  const tips = [], notches = [];
+  const ext = L / 2 + 3;
+  xs.forEach(xc => {
+    const X = ox + xc;
+    if (wy1 > wy0 + 2) base.push({ pts: rect(X - L / 2 - 4, wy0, X + L / 2 + 4, wy1), closed: true });
+    tips.push({ pts: [[X - ext, Ytip], [X + ext, Ytip]], closed: false });
+    const B = g.bnd;
+    for (let j = 0; j + 1 < B.length; j += 2) notches.push({ pts: [[X - B[j + 1].x, Ynotch], [X - B[j].x, Ynotch]], closed: false });
+    notches.push({ pts: [[X - ext, Ynotch], [X - B[B.length - 1].x, Ynotch]], closed: false });
+  });
+  const ribCount = ribX.length;
+  const flatR = g.poly.map(rot), deckTopY = sv => P2.add(Bp(sv), P2.mul(nD, t))[0];
+  const pieces = xs.map(xc => ({ pts: flatR.map(q => [ox + xc + q[0], deckTopY(sC + q[1])]), closed: true }));
+  return {
+    phi, outerDown, K, runs: Math.ceil(F / K), passes: n, W, Dd, zTip, zNotch, baseTop: t, planeErr, deckLowZ: z0, highZ: Bp(Dd)[1] + t,
+    station: { cuts: base, tips, notches, pieces, w: bx1 + 8, h: Math.max(by1, Ytip) + 10 },
+    three: { ox, t, phi, y0, z0, ribX, ribPoly, deckCuts, strip, xs, sC, flatR },
+    parts: [
+      { name: 'Jig rib', cuts: [{ pts: offset(ccw(ribPoly), k / 2), closed: true }], marks: [], scores: [], count: ribCount },
+      { name: 'Jig deck', cuts: deckCuts, marks: [], scores: [], count: 1 },
+      { name: 'Jig pocket strip', cuts: stripCuts, marks: [], scores: [], count: 1 },
+    ],
+  };
+}
+function stationSVG(stn, opts = {}) {
+  const W = Math.ceil(stn.w), H = Math.ceil(stn.h), pv = !!opts.preview;
+  const sw = pv ? 'stroke-width="1.4" vector-effect="non-scaling-stroke"' : 'stroke-width="0.1"';
+  const grp = (id, col, arr) => arr.length ? `<g id="${id}" fill="none" stroke="${col}" ${sw} stroke-linecap="round"><path d="${arr.map(pl => pathD(pl, H)).join('')}"/></g>` : '';
+  let extra = '';
+  if (pv && stn.pieces) extra = `<g fill="rgba(226,192,141,.45)" stroke="rgba(120,90,50,.9)" ${sw}>${stn.pieces.map(pl => `<path d="${pathD(pl, H)}"/>`).join('')}</g>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}mm" height="${H}mm" viewBox="0 0 ${W} ${H}">${pv ? `<rect width="${W}" height="${H}" fill="${opts.bg || '#fff'}"/>` : '<!-- Polysmith bevel jig station: red = base plate (cut in place first), orange = bevel tips, purple = bevel notches -->'}${grp('1-base-cut-in-place', '#ff0000', stn.cuts)}${extra}${grp('2-bevel-tips', '#ff8000', stn.tips)}${grp('3-bevel-notches', '#a000ff', stn.notches)}</svg>`;
+}
+function stationDXF(stn) {
+  return sheetDXF({ cuts: stn.cuts, scores: [], marks: [], fills: [] }).replace(/0\r\nENDSEC\r\n0\r\nEOF$/, '') + (() => {
+    const L = [];
+    const add = (arr, layer, col) => arr.forEach(pl => { L.push('0', 'POLYLINE', '8', layer, '62', col, '66', '1', '70', '0'); pl.pts.forEach(q => L.push('0', 'VERTEX', '8', layer, '10', q[0].toFixed(4), '20', q[1].toFixed(4), '30', '0')); L.push('0', 'SEQEND', '8', layer); });
+    add(stn.tips, 'BEVEL_TIPS', '30'); add(stn.notches, 'BEVEL_NOTCHES', '6');
+    return L.join('\r\n') + '\r\n0\r\nENDSEC\r\n0\r\nEOF';
+  })();
+}
+
+/* fit-test coupon */
+function coupon(p, pan) {
+  const t = p.t, k = p.kerf, fit = p.fit, w = pan.info.w || Math.max(3 * t, 6);
+  const offs = [-0.2, -0.1, 0, 0.1, 0.2], sp = Math.max(13, t + 9), W = offs.length * sp + 6, H = w + 20;
+  const out = [[0, 0], [W, 0], [W, H], [0, H]];
+  const cuts = [{ pts: offset(out, k / 2), closed: true }], marks = [];
+  offs.forEach((o, i) => {
+    const cx = 3 + sp * (i + 0.5), sw = (t + fit + o - k) / 2, y0 = 4 - (fit - k) / 2, y1 = 4 + w + (fit - k) / 2;
+    cuts.push({ pts: [[cx - sw, y0], [cx + sw, y0], [cx + sw, y1], [cx - sw, y1]], closed: true });
+    const lab = (o > 0 ? '+' : o < 0 ? '-' : '') + (o === 0 ? '0' : Math.abs(o).toFixed(1).replace(/^0/, ''));
+    marks.push(...text(lab, [cx, H - 7], 5));
+  });
+  const parts = [{ name: 'Fit coupon', cuts, marks, scores: [], count: 1 }];
+  const br = pan.parts.find(q => q.name === 'Bracket');
+  if (br) parts.push({ ...br, count: 2 });
+  return parts;
+}
+
+/* ---------- folding nets ---------- */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const netCache = {};
+function netLayout(id, tabFrac) {
+  const ck = id + ':' + tabFrac;
+  if (netCache[ck]) return netCache[ck];
+  const S = solid(id), n = S.sides, F = S.faces.length, rng = mulberry32(1234 + F * 7 + n);
+  const nb = S.faces.map((f, fi) => f.v.map((a, i) => { const b = f.v[(i + 1) % n], E = S.edgeMap[ekey(a, b)]; return { key: ekey(a, b), other: E.faces[0] === fi ? E.faces[1] : E.faces[0] }; }));
+  const H = tabFrac, th = Math.PI / 4, cot = 1 / Math.tan(th);
+  function place(Ps, start, dir, j) { const q = []; q[j] = start; let d = dir; for (let m = 1; m < n; m++) { q[(j + m) % n] = P2.add(q[(j + m - 1) % n], d); d = P2.rot(d, TAU / n); } return q; }
+  function tabPoly(pa, pb, c1, c2) {
+    const dv = P2.sub(pb, pa), l = P2.len(dv), u = [dv[0] / l, dv[1] / l], r = [u[1], -u[0]];
+    return ccw([pa, pb, P2.add(pb, P2.add(P2.mul(r, H), P2.mul(u, -H * c2))), P2.add(pa, P2.add(P2.mul(r, H), P2.mul(u, H * c1)))]);
+  }
+  const TAPERS = [[cot, cot], [cot, 1 / Math.tan(0.52)], [1 / Math.tan(0.52), cot], [1 / Math.tan(0.52), 1 / Math.tan(0.52)], [1 / Math.tan(0.4), 1 / Math.tan(0.4)]].filter(c => H * (c[0] + c[1]) < 0.9);
+  function attempt() {
+    const pos = new Array(F), parent = new Array(F).fill(null), tree = new Set();
+    const root = Math.floor(rng() * F);
+    pos[root] = place(null, [0, 0], [1, 0], 0);
+    const cand = []; nb[root].forEach((_, i) => cand.push([root, i]));
+    let placed = 1;
+    while (placed < F && cand.length) {
+      const ci = Math.floor(rng() * cand.length), [f, i] = cand.splice(ci, 1)[0], g = nb[f][i].other;
+      if (pos[g]) continue;
+      const fv = S.faces[f].v, gv = S.faces[g].v, A = fv[i], B = fv[(i + 1) % n];
+      let j = 0; for (; j < n; j++) if (gv[j] === B && gv[(j + 1) % n] === A) break;
+      const pa = pos[f][i], pb = pos[f][(i + 1) % n];
+      pos[g] = place(null, pb, P2.sub(pa, pb), j);
+      parent[g] = { f, i }; tree.add(nb[f][i].key); placed++;
+      nb[g].forEach((_, ii) => cand.push([g, ii]));
+    }
+    const shr = pos.map(p => shrink(p, 0.01));
+    for (let a = 0; a < F; a++) for (let b = a + 1; b < F; b++) if (overlap(shr[a], shr[b])) { G.__dbg && G.__dbg.face++; return null; }
+    const tabs = [], done = new Set(), cutEdges = [];
+    for (let f = 0; f < F; f++) for (let i = 0; i < n; i++) { const kk = nb[f][i].key; if (tree.has(kk) || done.has(kk)) continue; done.add(kk); cutEdges.push([f, i]); }
+    for (const [f, i] of cutEdges) {
+      const g = nb[f][i].other, gv = S.faces[g].v, fv = S.faces[f].v; let j = 0;
+      for (; j < n; j++) if (gv[j] === fv[(i + 1) % n] && gv[(j + 1) % n] === fv[i]) break;
+      const opts = rng() < 0.5 ? [[f, i], [g, j]] : [[g, j], [f, i]];
+      let ok = false;
+      outer: for (const [c1, c2] of TAPERS) for (const [ff, ii] of opts) {
+        const tp = tabPoly(pos[ff][ii], pos[ff][(ii + 1) % n], c1, c2), ts = shrink(tp, 0.01);
+        if (shr.some(sp => overlap(sp, ts))) continue;
+        if (tabs.some(tb => overlap(tb.s, ts))) continue;
+        tabs.push({ f: ff, i: ii, poly: tp, s: ts }); ok = true; break outer;
+      }
+      if (!ok) { G.__dbg && G.__dbg.tab++; return null; }
+    }
+    return { pos, parent, tree, tabs };
+  }
+  let best = null, bestA = Infinity, found = 0;
+  for (let tries = 0; tries < 6000 && found < 30; tries++) {
+    const r = attempt(); if (!r) continue; found++;
+    const all = [...r.pos, ...r.tabs.map(tb => tb.poly)];
+    for (let ai = 0; ai < 36; ai++) {
+      const ang = ai * Math.PI / 36, b = bbox(all.map(p => p.map(q => P2.rot(q, ang))));
+      const A = b.w * b.h * (1 + 0.15 * Math.abs(Math.log(b.w / b.h)));
+      if (A < bestA) { bestA = A; best = { r, ang }; }
+    }
+  }
+  if (!best) return null;
+  const { r, ang } = best, R = q => P2.rot(q, ang);
+  const pos = r.pos.map(p => p.map(R)), tabs = r.tabs.map(tb => ({ f: tb.f, i: tb.i, poly: tb.poly.map(R) }));
+  const b = bbox([...pos, ...tabs.map(tb => tb.poly)]), sh = q => [q[0] - b.x0, q[1] - b.y0];
+  const out = { pos: pos.map(p => p.map(sh)), tabs: tabs.map(tb => ({ ...tb, poly: tb.poly.map(sh) })), parent: r.parent, tree: r.tree, nb };
+  netCache[ck] = out;
+  return out;
+}
+function chain(segs) {
+  const key = p => Math.round(p[0] * 1000) + ',' + Math.round(p[1] * 1000);
+  const used = new Array(segs.length).fill(false), at = {};
+  segs.forEach((s, i) => { [0, 1].forEach(e => { const kk = key(s[e]); (at[kk] = at[kk] || []).push(i); }); });
+  const out = [];
+  for (let i = 0; i < segs.length; i++) {
+    if (used[i]) continue; used[i] = true;
+    const pts = [segs[i][0], segs[i][1]];
+    for (let dir = 0; dir < 2; dir++) {
+      for (;;) {
+        const end = dir === 0 ? pts[pts.length - 1] : pts[0], kk = key(end);
+        const nx = (at[kk] || []).find(j => !used[j]); if (nx === undefined) break;
+        used[nx] = true; const s = segs[nx], other = key(s[0]) === kk ? s[1] : s[0];
+        if (dir === 0) pts.push(other); else pts.unshift(other);
+      }
+    }
+    const closed = pts.length > 2 && key(pts[0]) === key(pts[pts.length - 1]);
+    if (closed) pts.pop();
+    out.push({ pts, closed });
+  }
+  return out;
+}
+function dashed(seg, dash, gap) {
+  const [a, b] = seg, v = P2.sub(b, a), l = P2.len(v), u = [v[0] / l, v[1] / l], out = [];
+  const nD = Math.max(1, Math.floor((l + gap) / (dash + gap))), used = nD * dash + (nD - 1) * gap, st = (l - used) / 2;
+  for (let i = 0; i < nD; i++) { const s0 = st + i * (dash + gap); out.push({ pts: [P2.add(a, P2.mul(u, s0)), P2.add(a, P2.mul(u, s0 + dash))], closed: false }); }
+  return out;
+}
+function net(p) {
+  const S = solid(p.solid), n = S.sides, L = p.L, warn = [];
+  const tabFrac = Math.min(p.tabH / L, 0.32);
+  const lay = netLayout(p.solid, Math.round(tabFrac * 100) / 100);
+  if (!lay) return { parts: [], warn: [{ lvl: 'err', msg: 'Could not find a net layout.' }], info: {} };
+  const sc = q => [q[0] * L, q[1] * L];
+  const pos = lay.pos.map(pp => pp.map(sc)), tabs = lay.tabs.map(tb => ({ ...tb, poly: tb.poly.map(sc) }));
+  const cutSegs = [], scoreSegs = [], seenTree = new Set();
+  const tabOn = {}; tabs.forEach(tb => { tabOn[tb.f + ':' + tb.i] = tb; });
+  pos.forEach((pp, f) => pp.forEach((pa, i) => {
+    const pb = pp[(i + 1) % n], kk = lay.nb[f][i].key;
+    if (lay.tree.has(kk)) { if (!seenTree.has(kk)) { seenTree.add(kk); scoreSegs.push([pa, pb]); } }
+    else if (tabOn[f + ':' + i]) {
+      scoreSegs.push([pa, pb]);
+      const tp = tabOn[f + ':' + i].poly; // ccw: find pa, pb and emit outer 3 sides
+      const ia = tp.findIndex(q => P2.len(P2.sub(q, pa)) < 1e-6), ib = tp.findIndex(q => P2.len(P2.sub(q, pb)) < 1e-6);
+      // walk from pb to pa the long way
+      let cur = ib; for (let s2 = 0; s2 < 3; s2++) { const nx = (cur + 1) % 4; cutSegs.push([tp[cur], tp[nx]]); cur = nx; }
+      if (cur !== ia) { /* orientation mismatch: walk other way */ cutSegs.splice(cutSegs.length - 3, 3); cur = ia; for (let s2 = 0; s2 < 3; s2++) { const nx = (cur + 1) % 4; cutSegs.push([tp[cur], tp[nx]]); cur = nx; } }
+    } else cutSegs.push([pa, pb]);
+  }));
+  const cuts = chain(cutSegs);
+  let scores = [];
+  if (p.fold === 'perf') { scoreSegs.forEach(sg => cuts.push(...dashed(sg, Math.max(1.5, Math.min(6, L * 0.06)), Math.max(1, Math.min(2.5, L * 0.025))))); }
+  else scores = scoreSegs.map(sg => ({ pts: sg, closed: false }));
+  const marks = [];
+  if (p.dice) {
+    const F = S.faces.length, num = new Array(F).fill(0);
+    if (F === 4) num.forEach((_, i) => { num[i] = i + 1; });
+    else { let k2 = 1; for (let f = 0; f < F; f++) { if (num[f]) continue; const o = S.faces.findIndex(g => V.dot(g.n, S.faces[f].n) < -0.999); num[f] = k2; num[o] = F + 1 - k2; k2++; } }
+    pos.forEach((pp, f) => {
+      const c = centroid(pp), ap = L / (2 * Math.tan(Math.PI / n)), hN = ap * 0.75;
+      const e0 = P2.sub(pp[1], pp[0]), ang = Math.atan2(e0[1], e0[0]);
+      marks.push(...text(String(num[f]), c, hN, ang));
+      if (num[f] === 6 || num[f] === 9) marks.push(...text('_', c, hN, ang));
+    });
+  }
+  return { parts: [{ name: 'Net', cuts, scores, marks, count: p.copies || 1, tri: false }], warn, info: { pos, tabs, lay, dihedral: S.dihedral, n } };
+}
+
+/* ---------- packing (sheet origin bottom-left, y-up; fill from top-left) ---------- */
+function xformPart(part, rot180, dx, dy, b) {
+  const cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2;
+  const f = q => { let x = q[0], y = q[1]; if (rot180) { x = 2 * cx - x; y = 2 * cy - y; } return [x - b.x0 + dx, y - b.y0 + dy]; };
+  const m = arr => arr.map(pl => ({ pts: pl.pts.map(f), closed: pl.closed }));
+  return { cuts: m(part.cuts), scores: m(part.scores || []), marks: m(part.marks || []), fills: m(part.fills || []) };
+}
+function pack(parts, W, Hs, margin, sp) {
+  const items = [];
+  parts.forEach(pt => { for (let i = 0; i < pt.count; i++) items.push(pt); });
+  const sheets = [], warn = [];
+  let sheet = null, x = margin, rowTop = Hs - margin, rowH = 0, prevTri = false, triIdx = 0, prevB = null, prevLeft = margin, rowEmpty = true;
+  const newSheet = () => { sheet = { cuts: [], scores: [], marks: [], fills: [], counts: {} }; sheets.push(sheet); x = margin; rowTop = Hs - margin; rowH = 0; prevTri = false; triIdx = 0; rowEmpty = true; };
+  newSheet();
+  for (const pt of items) {
+    const b = pt._b || (pt._b = bbox(pt.cuts.map(c => c.pts)));
+    if (b.w > W - 2 * margin || b.h > Hs - 2 * margin) {
+      if (!warn.length) warn.push({ lvl: 'err', msg: `A part (${b.w.toFixed(0)}×${b.h.toFixed(0)} mm) is bigger than the sheet. It's been put on its own oversize sheet.` });
+      const sh = { cuts: [], scores: [], marks: [], fills: [], counts: {}, oversize: { w: b.w + 2 * margin, h: b.h + 2 * margin } };
+      const xp = xformPart(pt, false, margin, margin, b);
+      sh.cuts.push(...xp.cuts); sh.scores.push(...xp.scores); sh.marks.push(...xp.marks); sh.fills.push(...xp.fills); sh.counts[pt.name] = 1;
+      sheets.splice(sheets.length - 1, 0, sh); continue;
+    }
+    let px;
+    if (rowEmpty) px = margin;
+    else if (pt.tri && prevTri && prevB === b) px = prevLeft + b.w / 2 + sp / Math.sin(Math.PI / 3);
+    else px = x + sp;
+    if (px + b.w > W - margin + 1e-6) { rowTop -= rowH + sp; px = margin; x = margin; rowH = 0; prevTri = false; triIdx = 0; rowEmpty = true; }
+    if (rowTop - b.h < margin - 1e-6) { newSheet(); px = margin; }
+    const rot = pt.tri ? (triIdx % 2 === 1) : false;
+    const xp = xformPart(pt, rot, px, rowTop - b.h, b);
+    sheet.cuts.push(...xp.cuts); sheet.scores.push(...xp.scores); sheet.marks.push(...xp.marks); sheet.fills.push(...xp.fills);
+    sheet.counts[pt.name] = (sheet.counts[pt.name] || 0) + 1;
+    x = Math.max(x, px + b.w); prevLeft = px; rowEmpty = false; rowH = Math.max(rowH, b.h);
+    if (pt.tri) { prevTri = true; triIdx++; } else { prevTri = false; triIdx = 0; }
+    prevB = b;
+  }
+  return { sheets: sheets.filter(s => s.cuts.length), warn };
+}
+
+/* ---------- exporters ---------- */
+const COL = { cut: '#ff0000', score: '#0000ff', mark: '#00a000', fill: '#000000' };
+function pathD(pl, H) { return 'M' + pl.pts.map(q => q[0].toFixed(3) + ',' + (H - q[1]).toFixed(3)).join('L') + (pl.closed ? 'Z' : ''); }
+function sheetSVG(sh, W, H, opts = {}) {
+  const sw = opts.preview ? 'stroke-width="1.2" vector-effect="non-scaling-stroke"' : 'stroke-width="0.1"';
+  const grp = (id, arr) => arr.length ? `<g id="${id}" fill="${id === 'fill' ? (opts.preview ? 'rgba(40,24,10,.75)' : '#000000') : 'none'}" fill-rule="evenodd" stroke="${COL[id]}" ${sw} stroke-linecap="round" stroke-linejoin="round"><path d="${arr.map(pl => pathD(pl, H)).join('')}"/></g>` : '';
+  const bg = opts.preview ? `<rect x="0" y="0" width="${W}" height="${H}" fill="${opts.bg || '#fff'}"/>` : '';
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}mm" height="${H}mm" viewBox="0 0 ${W} ${H}">${opts.preview ? '' : '<!-- Polysmith: red=cut, blue=score/fold, green=engrave line, black=fill engrave -->'}${bg}${grp('fill', sh.fills || [])}${grp('mark', sh.marks)}${grp('score', sh.scores)}${grp('cut', sh.cuts)}</svg>`;
+}
+function sheetDXF(sh) {
+  const L = ['0', 'SECTION', '2', 'HEADER', '9', '$INSUNITS', '70', '4', '0', 'ENDSEC', '0', 'SECTION', '2', 'ENTITIES'];
+  const add = (arr, layer, col) => arr.forEach(pl => {
+    L.push('0', 'POLYLINE', '8', layer, '62', col, '66', '1', '70', pl.closed ? '1' : '0');
+    pl.pts.forEach(q => L.push('0', 'VERTEX', '8', layer, '10', q[0].toFixed(4), '20', q[1].toFixed(4), '30', '0'));
+    L.push('0', 'SEQEND', '8', layer);
+  });
+  add(sh.cuts, 'CUT', '1'); add(sh.scores, 'SCORE', '5'); add(sh.marks, 'ENGRAVE', '3'); add(sh.fills || [], 'FILL_ENGRAVE', '7');
+  L.push('0', 'ENDSEC', '0', 'EOF');
+  return L.join('\r\n');
+}
+/* stored (uncompressed) zip */
+function crc32(buf) { let c, crc = 0xFFFFFFFF; for (let i = 0; i < buf.length; i++) { c = (crc ^ buf[i]) & 0xFF; for (let k = 0; k < 8; k++) c = c & 1 ? (c >>> 1) ^ 0xEDB88320 : c >>> 1; crc = (crc >>> 8) ^ c; } return (crc ^ 0xFFFFFFFF) >>> 0; }
+function zip(files) {
+  const enc = new TextEncoder(), chunks = [], central = []; let off = 0;
+  const u16 = v => [v & 255, (v >> 8) & 255], u32 = v => [v & 255, (v >> 8) & 255, (v >> 16) & 255, (v >>> 24) & 255];
+  files.forEach(f => {
+    const name = enc.encode(f.name), data = typeof f.data === 'string' ? enc.encode(f.data) : f.data, crc = crc32(data);
+    const hdr = [0x50, 0x4b, 3, 4, ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0x21), ...u32(crc), ...u32(data.length), ...u32(data.length), ...u16(name.length), ...u16(0)];
+    chunks.push(new Uint8Array(hdr), name, data);
+    central.push({ name, crc, size: data.length, off });
+    off += hdr.length + name.length + data.length;
+  });
+  let cdSize = 0;
+  central.forEach(c => {
+    const h = [0x50, 0x4b, 1, 2, ...u16(20), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0x21), ...u32(c.crc), ...u32(c.size), ...u32(c.size), ...u16(c.name.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(c.off)];
+    chunks.push(new Uint8Array(h), c.name); cdSize += h.length + c.name.length;
+  });
+  chunks.push(new Uint8Array([0x50, 0x4b, 5, 6, 0, 0, 0, 0, ...u16(central.length), ...u16(central.length), ...u32(cdSize), ...u32(off), 0, 0]));
+  return new Blob(chunks, { type: 'application/zip' });
+}
+
+G.Poly = { PHI, TAU, V, P2, INFO, solid, panels, coupon, net, pack, sheetSVG, sheetDXF, zip, perim, offset, area, overlap, bbox, text, bracketFrame, ngon, fingerGeom, jigStation, ccw, stationSVG, stationDXF };
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+<script>(function () {
+'use strict';
+const P = window.Poly, { V } = P;
+const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
+const IN = 25.4;
+
+/* ---------- state ---------- */
+const DEF = {
+  solid: 'icosa', mode: 'tab', units: 'mm', measure: 'edge', size: 80, t: 3, kerf: 0.15, fit: 0.05,
+  perEdge: 1, tabLen: 0, protrude: 0, fingerW: 0, fingerStyle: 'flush', deckColor: '#3f9aa0', artMode: 'fill', artScale: 80, artRot: 0, artWhere: 'all', window: 'none', windowPct: 60, dice: false,
+  tabH: 8, fold: 'score', copies: 1, sheetW: 600, sheetH: 400, margin: 5, spacing: 3, sheetPreset: '600x400',
+};
+let st = { ...DEF };
+try { const s = JSON.parse(localStorage.getItem('polysmith') || 'null'); if (s) st = { ...DEF, ...s }; } catch (e) { /* storage unavailable */ }
+const save = () => { try { localStorage.setItem('polysmith', JSON.stringify(st)); } catch (e) { /* ignore */ } };
+
+const LEN_KEYS = ['fingerW', 'size', 't', 'kerf', 'fit', 'tabLen', 'protrude', 'tabH', 'sheetW', 'sheetH', 'margin', 'spacing'];
+const fmtLen = (mm, key) => {
+  if (st.units === 'in') { const v = mm / IN; return +(v.toFixed(['kerf', 'fit', 'protrude'].includes(key) ? 4 : 3)); }
+  return +mm.toFixed(['kerf', 'fit'].includes(key) ? 3 : 2);
+};
+const u = (mm, dp) => st.units === 'in' ? (mm / IN).toFixed(dp == null ? 3 : dp) + '″' : mm.toFixed(dp == null ? 1 : Math.max(0, dp - 2)) + ' mm';
+
+
+/* ---------- artwork: SVG -> polylines ---------- */
+let ART = null; // {name, svg, polys:[{pts,closed}]} normalised to the unit circle, y-up
+function rdp(pts, eps) {
+  if (pts.length < 3) return pts;
+  const keep = new Uint8Array(pts.length); keep[0] = keep[pts.length - 1] = 1;
+  const stack = [[0, pts.length - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop(); let md = 0, mi = -1;
+    const A = pts[a], B = pts[b], dx = B[0] - A[0], dy = B[1] - A[1], L2 = dx * dx + dy * dy;
+    for (let i = a + 1; i < b; i++) {
+      const P0 = pts[i]; let d;
+      if (L2 < 1e-12) d = Math.hypot(P0[0] - A[0], P0[1] - A[1]);
+      else { const tt = Math.max(0, Math.min(1, ((P0[0] - A[0]) * dx + (P0[1] - A[1]) * dy) / L2)); d = Math.hypot(P0[0] - A[0] - tt * dx, P0[1] - A[1] - tt * dy); }
+      if (d > md) { md = d; mi = i; }
+    }
+    if (md > eps && mi > 0) { keep[mi] = 1; stack.push([a, mi], [mi, b]); }
+  }
+  return pts.filter((_, i) => keep[i]);
+}
+function sanitizeSVG(text) {
+  const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
+  const root = doc.documentElement;
+  if (!root || root.nodeName.toLowerCase() !== 'svg' || doc.getElementsByTagName('parsererror').length) throw new Error("That file isn't a readable SVG.");
+  root.querySelectorAll('script,foreignObject,iframe,image,audio,video,animate,set,animateTransform,animateMotion').forEach(n => n.remove());
+  root.querySelectorAll('*').forEach(n => [...n.attributes].forEach(a => { if (/^on/i.test(a.name) || (/href$/i.test(a.name) && !/^#/.test(a.value.trim()))) n.removeAttribute(a.name); }));
+  [...root.attributes].forEach(a => { if (/^on/i.test(a.name)) root.removeAttribute(a.name); });
+  return root;
+}
+function parseArt(text, name) {
+  const root = sanitizeSVG(text);
+  const num = v => parseFloat(String(v || '').replace(/[a-z%]+$/i, ''));
+  if (!root.getAttribute('viewBox')) { const w = num(root.getAttribute('width')), h = num(root.getAttribute('height')); if (w > 0 && h > 0) root.setAttribute('viewBox', `0 0 ${w} ${h}`); }
+  const host = document.createElement('div');
+  host.style.cssText = 'position:absolute;left:-99999px;top:0;width:600px;height:600px;overflow:hidden;';
+  const svg = document.importNode(root, true);
+  svg.setAttribute('width', '600'); svg.setAttribute('height', '600');
+  host.appendChild(svg); document.body.appendChild(host);
+  const polys = []; let texts = 0;
+  try {
+    if (!svg.getAttribute('viewBox')) { const b = svg.getBBox(); if (b.width > 0 && b.height > 0) svg.setAttribute('viewBox', `${b.x} ${b.y} ${b.width} ${b.height}`); }
+    texts = svg.querySelectorAll('text').length;
+    const els = svg.querySelectorAll('path,rect,circle,ellipse,line,polyline,polygon');
+    const SP = 0.6; // sampling step in the 600px frame
+    els.forEach(el => {
+      if (el.closest('defs,clipPath,mask,symbol,marker,pattern')) return;
+      const cs = getComputedStyle(el); if (cs.display === 'none' || cs.visibility === 'hidden') return;
+      let len = 0; try { len = el.getTotalLength(); } catch (e) { return; }
+      if (!(len > 0)) return;
+      const m = el.getCTM(); if (!m) return;
+      const sc = Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)) || 1;
+      const N = Math.max(8, Math.min(6000, Math.ceil(len * sc / SP)));
+      let cur = [], prev = null;
+      const flush = () => { if (cur.length > 1) polys.push(cur); cur = []; };
+      for (let i = 0; i <= N; i++) {
+        const q = el.getPointAtLength(len * i / N), r = new DOMPoint(q.x, q.y).matrixTransform(m), pt = [r.x, -r.y];
+        if (prev && Math.hypot(pt[0] - prev[0], pt[1] - prev[1]) > 4 * (len * sc / N) + 0.5) flush();
+        cur.push(pt); prev = pt;
+      }
+      flush();
+    });
+  } finally { host.remove(); }
+  if (!polys.length) throw new Error(texts ? 'This SVG only has text. Convert text to paths (outlines) in your design app, then upload again.' : 'No drawable shapes found in that SVG.');
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  polys.forEach(pl => pl.forEach(q => { x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]); }));
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2; let r = 0;
+  polys.forEach(pl => pl.forEach(q => { r = Math.max(r, Math.hypot(q[0] - cx, q[1] - cy)); }));
+  r = r || 1;
+  const out = polys.map(pl => {
+    let pts = pl.map(q => [(q[0] - cx) / r, (q[1] - cy) / r]);
+    const closed = pts.length > 3 && Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]) < 0.01;
+    pts = rdp(pts, 0.0012); if (closed && pts.length > 3) pts.pop();
+    return { pts, closed: closed && pts.length >= 3 };
+  }).filter(pl => pl.pts.length >= 2);
+  const clean = new XMLSerializer().serializeToString(root);
+  return { name: name || 'artwork.svg', svg: clean, polys: out, texts };
+}
+function setArt(text, name) {
+  ART = parseArt(text, name);
+  try { localStorage.setItem('polysmith-art', JSON.stringify({ name: ART.name, svg: ART.svg })); } catch (e) { /* too big or blocked */ }
+  renderArtUI(); compute();
+  if (ART.texts) toast('Text elements were skipped. Convert text to outlines to include it.');
+}
+function clearArt() { ART = null; try { localStorage.removeItem('polysmith-art'); } catch (e) { /* ignore */ } renderArtUI(); compute(); }
+function renderArtUI() {
+  const has = !!ART;
+  $('#art-thumb').innerHTML = has ? `<img alt="" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(ART.svg)}">` : '<span>No artwork</span>';
+  $('#art-name').textContent = has ? `${ART.name} · ${ART.polys.length} paths` : 'Upload an SVG' + (sampleFn ? ' or describe one below' : '');
+  $('#art-clear').hidden = !has;
+  $$('.art-opt').forEach(el => { el.style.display = has ? '' : 'none'; });
+}
+function artRadius(res, mode) {
+  const inf = res.info, t = st.t;
+  if (st.mode === 'net') { const n = R0().sides; return R0L() / (2 * Math.tan(Math.PI / n)) * 0.82; }
+  if (inf.finger) return mode === 'cut' ? inf.finger.a - inf.finger.v - Math.max(2 * t, 4) : inf.finger.a - inf.finger.v - 1;
+  if (mode === 'cut') return inf.per > 0 ? inf.ap - inf.D - Math.max(t, 2.5) : inf.ap - Math.max(2 * t, 4);
+  return inf.ap - Math.max(1.2 * t, 2.5);
+}
+let _S = null, _L = 0; const R0 = () => _S, R0L = () => _L;
+function applyArt(res, S, L) {
+  _S = S; _L = L; res.artFace = null;
+  if (!ART) return;
+  const mode = st.artMode, rad = Math.max(1, artRadius(res, mode)) * st.artScale / 100, rot = st.artRot * Math.PI / 180;
+  const tf = (pts, c, r, a) => { const ca = Math.cos(a), sa = Math.sin(a); return pts.map(p => [c[0] + (p[0] * ca - p[1] * sa) * r, c[1] + (p[0] * sa + p[1] * ca) * r]); };
+  const emit = (part, c, r, a) => {
+    part.fills = part.fills || [];
+    ART.polys.forEach(pl => { const o = { pts: tf(pl.pts, c, r, a), closed: pl.closed };
+      if (mode === 'cut' && pl.closed) part.cuts.push(o); else if (mode === 'fill' && pl.closed) part.fills.push(o); else part.marks.push(o); });
+  };
+  res.artFace = { r: rad, rot, mode };
+  if (st.mode === 'net') {
+    const part = res.parts[0], pos = res.info.pos; if (!pos) return;
+    res.artFace.net = [];
+    pos.forEach((pp, f) => {
+      if (st.artWhere === 'one' && f !== 0) return;
+      let cx = 0, cy = 0; pp.forEach(q => { cx += q[0]; cy += q[1]; }); cx /= pp.length; cy /= pp.length;
+      const a = Math.atan2(pp[1][1] - pp[0][1], pp[1][0] - pp[0][0]) + rot;
+      emit(part, [cx, cy], rad, a); res.artFace.net.push({ f, c: [cx, cy], a });
+    });
+    return;
+  }
+  const faces = res.parts.filter(p => /^Face/.test(p.name));
+  if (st.artWhere === 'one') {
+    const f0 = faces[0]; if (!f0) return;
+    if (f0.count > 1) {
+      const copy = { ...f0, name: f0.name + ' (art)', count: 1, cuts: f0.cuts.slice(), marks: f0.marks.slice(), scores: (f0.scores || []).slice(), fills: [] };
+      f0.count -= 1; res.parts.splice(res.parts.indexOf(f0), 0, copy); emit(copy, [0, 0], rad, rot);
+    } else emit(f0, [0, 0], rad, rot);
+  } else faces.forEach(f => emit(f, [0, 0], rad, rot));
+  if (mode === 'cut') res.warn.push({ lvl: 'info', msg: 'Cut-through artwork: any island inside a closed shape will fall out. Stencil-style designs work best.' });
+}
+
+/* ---------- compute ---------- */
+let R = null;
+function edgeFromSize() {
+  const S = P.solid(st.solid);
+  if (st.measure === 'edge') return st.size;
+  if (st.measure === 'sphere') return st.size / (2 * S.R);
+  return st.size / S.height;
+}
+function compute() {
+  const L = edgeFromSize();
+  const base = { solid: st.solid, L, t: st.t, kerf: st.kerf, fit: st.fit };
+  let res;
+  if (st.mode === 'net') res = P.net({ ...base, tabH: st.tabH, fold: st.fold, dice: st.dice, copies: st.copies });
+  else res = P.panels({ ...base, joint: st.mode, perEdge: st.perEdge, tabLen: st.tabLen, fingerW: st.fingerW, fingerStyle: st.fingerStyle, protrude: st.protrude, window: st.window, windowPct: st.windowPct, dice: st.dice });
+  applyArt(res, P.solid(st.solid), L);
+  let jig = null;
+  if (st.mode === 'finger' && st.fingerStyle === 'bevel' && res.info.finger) jig = P.jigStation(P.solid(st.solid), L, st.t, res.info.finger, { kerf: st.kerf, fit: st.fit, bedW: st.sheetW, bedH: st.sheetH });
+  const pk = P.pack(res.parts, st.sheetW, st.sheetH, st.margin, st.spacing);
+  let cut = 0, score = 0;
+  pk.sheets.forEach(sh => { sh.cuts.forEach(c => { cut += P.perim(c); }); sh.scores.forEach(c => { score += P.perim(c); }); });
+  R = { L, res, pk, cut, score, S: P.solid(st.solid), jig };
+  if (curSheet >= pk.sheets.length) curSheet = 0;
+  sceneDirty = true;
+  renderAll();
+}
+
+/* ---------- UI binding ---------- */
+function syncInputs() {
+  $$('[data-k]').forEach(el => {
+    const k = el.dataset.k;
+    if (el.type === 'checkbox') el.checked = !!st[k];
+    else if (el.tagName === 'SELECT') el.value = st[k];
+    else if (el.type === 'range') el.value = st[k];
+    else el.value = LEN_KEYS.includes(k) ? fmtLen(st[k], k) : st[k];
+  });
+  $$('[data-unit]').forEach(el => { el.textContent = st.units === 'in' ? 'in' : 'mm'; });
+  $$('.seg [data-v]').forEach(b => { const k = b.parentElement.dataset.seg; b.classList.toggle('on', String(st[k]) === b.dataset.v); });
+  $$('.solid-btn').forEach(b => b.classList.toggle('on', b.dataset.solid === st.solid));
+  document.body.dataset.mode = st.mode;
+  $('#wpct-out').textContent = st.windowPct + '%';
+}
+let tmr = null;
+function onInput(el, immediate) {
+  const k = el.dataset.k;
+  let v;
+  if (el.type === 'checkbox') v = el.checked;
+  else if (el.tagName === 'SELECT') v = el.value;
+  else { v = parseFloat(el.value); if (!isFinite(v)) return; if (LEN_KEYS.includes(k) && st.units === 'in') v *= IN; }
+  if (['size', 't', 'sheetW', 'sheetH'].includes(k) && v <= 0) return;
+  if (k === 'measure') {
+    // keep physical size: convert current edge into the new measure
+    const L = edgeFromSize(), S = P.solid(st.solid);
+    st.measure = v; st.size = v === 'edge' ? L : v === 'sphere' ? L * 2 * S.R : L * S.height;
+    syncInputs(); compute(); save(); return;
+  }
+  if (k === 'sheetPreset') {
+    st.sheetPreset = v;
+    if (v !== 'custom') { const [w, h] = v.split('x').map(Number); st.sheetW = w; st.sheetH = h; }
+    syncInputs(); compute(); save(); return;
+  }
+  if (k === 'sheetW' || k === 'sheetH') st.sheetPreset = 'custom';
+  st[k] = v;
+  if (k === 'windowPct') $('#wpct-out').textContent = v + '%';
+  clearTimeout(tmr);
+  if (immediate) { compute(); save(); } else tmr = setTimeout(() => { compute(); save(); }, 160);
+}
+function bind() {
+  $$('[data-k]').forEach(el => {
+    el.addEventListener('input', () => onInput(el, false));
+    el.addEventListener('change', () => onInput(el, true));
+  });
+  $$('.seg').forEach(seg => seg.addEventListener('click', e => {
+    const b = e.target.closest('[data-v]'); if (!b) return;
+    const k = seg.dataset.seg; let v = b.dataset.v; if (/^\d+$/.test(v)) v = +v;
+    if (k === 'units') { st.units = v; syncInputs(); save(); renderAll(); return; }
+    st[k] = v; if (k === 'mode') { anim.t = 0; anim.playing = st.mode === 'net'; anim.dir = 1; }
+    syncInputs(); compute(); save();
+  }));
+  $$('.solid-btn').forEach(b => b.addEventListener('click', () => {
+    const L = edgeFromSize(), S = P.solid(b.dataset.solid);
+    st.solid = b.dataset.solid;
+    if (st.measure !== 'edge') st.size = st.measure === 'sphere' ? L * 2 * P.solid(st.solid).R : L * P.solid(st.solid).height;
+    void S; syncInputs(); compute(); save();
+  }));
+  $$('.chip[data-t]').forEach(c => c.addEventListener('click', () => { st.t = parseFloat(c.dataset.t); syncInputs(); compute(); save(); }));
+  $('#reset').addEventListener('click', () => { st = { ...DEF }; syncInputs(); compute(); save(); });
+  $('#slider').addEventListener('input', e => { anim.t = +e.target.value / 1000; anim.playing = false; updPlay(); sceneDirty = true; });
+  $('#play').addEventListener('click', () => { anim.playing = !anim.playing; if (anim.playing && anim.t >= 1) anim.dir = -1; if (anim.playing && anim.t <= 0) anim.dir = 1; updPlay(); });
+  $('#sheet-tabs').addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (!b) return; curSheet = +b.dataset.i; renderSheet(); });
+  $('#dl-svg').addEventListener('click', () => dl(fname(curSheet, 'svg'), P.sheetSVG(R.pk.sheets[curSheet], ...sheetDims(R.pk.sheets[curSheet]))));
+  $('#dl-dxf').addEventListener('click', () => dl(fname(curSheet, 'dxf').replace(/dxf$/, 'dxf'), P.sheetDXF(R.pk.sheets[curSheet]), true));
+  $('#dl-zip').addEventListener('click', () => dl(baseName() + '.zip', buildZip()));
+  $('#dl-coupon').addEventListener('click', () => {
+    const pan = R.res.parts.find(p => p.name === 'Bracket') ? R.res : P.panels({ solid: st.solid, L: R.L, t: st.t, kerf: st.kerf, fit: st.fit, joint: 'tab', perEdge: 1, tabLen: st.tabLen, protrude: 0, window: 'none', windowPct: 0, dice: false });
+    const parts = P.coupon({ t: st.t, kerf: st.kerf, fit: st.fit }, pan);
+    const pk = P.pack(parts, 300, 200, 4, 3), sh = pk.sheets[0];
+    const b = P.bbox(sh.cuts.map(c => c.pts));
+    dl(`polysmith-fit-coupon-${st.t}mm.svg`, P.sheetSVG(sh, Math.ceil(b.x1 + 4), 200).replace(/viewBox="0 0 (\S+) 200"/, (m, w) => `viewBox="0 ${(200 - b.y1 - 4).toFixed(2)} ${w} ${(b.y1 - b.y0 + 8).toFixed(2)}"`).replace(/height="200mm"/, `height="${(b.y1 - b.y0 + 8).toFixed(2)}mm"`));
+  });
+}
+const sheetDims = sh => sh.oversize ? [Math.ceil(sh.oversize.w), Math.ceil(sh.oversize.h)] : [st.sheetW, st.sheetH];
+const baseName = () => `polysmith-${R.S.name.toLowerCase()}-${st.mode === 'net' ? 'net' : st.mode === 'tab' ? 'slotted' : st.mode === 'finger' ? 'finger' : st.mode === 'block' ? 'glueblock' : 'panels'}-${Math.round(R.L)}mm-edge-${st.t}mm`;
+const fname = (i, ext) => `${baseName()}-sheet${i + 1}of${R.pk.sheets.length}.${ext}`;
+function readme() {
+  const S = R.S, inf = R.res.info, lines = [
+    `Polysmith — ${S.name} (${S.die})`, '',
+    `Edge length (outer): ${R.L.toFixed(2)} mm`, `Dihedral angle: ${(S.dihedral * 180 / Math.PI).toFixed(3)}°`,
+    `Across points (sphere dia): ${(2 * S.R * R.L).toFixed(1)} mm`, `Height resting on a face: ${(S.height * R.L).toFixed(1)} mm`,
+    `Material: ${st.t} mm, kerf ${st.kerf} mm, fit ${st.fit} mm`, '',
+    'Colours: RED = cut, BLUE = score / fold line, GREEN = line engrave, BLACK = fill engrave (artwork).',
+    'Files are in millimetres. Import at 100% scale. DXF layers: CUT, SCORE, ENGRAVE.', '',
+    'Parts:', ...R.res.parts.map(p => `  ${p.count} × ${p.name}`), '', ...guideText().map(s => '- ' + s),
+  ];
+  if (inf.s != null) lines.splice(7, 0, `Face inset per edge (thickness compensation): ${inf.s.toFixed(2)} mm`);
+  return lines.join('\r\n');
+}
+function buildZip() {
+  const files = [];
+  R.pk.sheets.forEach((sh, i) => { files.push({ name: fname(i, 'svg'), data: P.sheetSVG(sh, ...sheetDims(sh)) }); files.push({ name: fname(i, 'dxf'), data: P.sheetDXF(sh) }); });
+  if (R.jig) {
+    const pk = P.pack(R.jig.parts, st.sheetW, st.sheetH, st.margin, st.spacing);
+    pk.sheets.forEach((sh, i) => files.push({ name: `${baseName()}-jig-parts-${i + 1}.svg`, data: P.sheetSVG(sh, st.sheetW, st.sheetH) }));
+    files.push({ name: `${baseName()}-jig-station.svg`, data: P.stationSVG(R.jig.station) }, { name: `${baseName()}-jig-station.dxf`, data: P.stationDXF(R.jig.station) });
+  }
+  files.push({ name: 'README.txt', data: readme() });
+  return P.zip(files);
+}
+let dlNS = null;
+if (window.claude && window.claude.use) window.claude.use('downloads').then(ns => { dlNS = ns; }).catch(() => {});
+function toast(m, bad) { const el = $('#toast'); el.textContent = m; el.className = 'toast show' + (bad ? ' bad' : ''); clearTimeout(el._t); el._t = setTimeout(() => { el.className = 'toast'; }, 3600); }
+async function dl(name, data) {
+  const toast = $('#toast');
+  const show = (m, bad) => { toast.textContent = m; toast.className = 'toast show' + (bad ? ' bad' : ''); clearTimeout(toast._t); toast._t = setTimeout(() => { toast.className = 'toast'; }, 3200); };
+  const isDxf = name.endsWith('.dxf');
+  if (dlNS && !isDxf) {
+    try { await dlNS.save({ filename: name, data }); show('Saved ' + name); } catch (e) { if (e && e.code === 'declined') show('Download cancelled'); else show('Could not save: ' + (e && e.message || e), true); }
+    return;
+  }
+  if (dlNS && isDxf) { // .dxf isn't on the allow-list — ship it inside a zip
+    try { await dlNS.save({ filename: name.replace(/\.dxf$/, '-dxf.zip'), data: P.zip([{ name, data }]) }); show('Saved DXF (zipped)'); } catch (e) { if (e && e.code === 'declined') show('Download cancelled'); else show('Could not save: ' + (e && e.message || e), true); }
+    return;
+  }
+  try {
+    const blob = data instanceof Blob ? data : new Blob([data], { type: 'application/octet-stream' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); show('Downloading ' + name);
+  } catch (e) { show('Downloads are blocked here', true); }
+}
+
+/* ---------- render: stats, warnings, guide, sheets ---------- */
+let curSheet = 0;
+function renderAll() { renderStats(); renderSheet(); renderGuide(); renderJig(); updSolo(); sceneDirty = true; }
+function renderStats() {
+  const S = R.S, inf = R.res.info, L = R.L;
+  const rows = [
+    ['Edge length', u(L)], ['Across points', u(2 * S.R * L)], ['Height on a face', u(S.height * L)],
+    ['Dihedral angle', (S.dihedral * 180 / Math.PI).toFixed(3) + '°'],
+  ];
+  if (st.mode === 'finger') {
+    rows.push(['Fingers per edge', inf.finger.N + ''], ['Finger width', u(inf.finger.w)], ['Finger depth', u((inf.finger.vMax || inf.finger.v) - inf.finger.U, 3)]);
+  } else if (st.mode !== 'net') {
+    rows.push(['Edge inset (thickness fix)', u(inf.s, 3)]);
+    if (inf.per > 0) rows.push([st.mode === 'tab' ? 'Tab length' : 'Block depth', u(st.mode === 'tab' ? inf.w : inf.D)]);
+  }
+  rows.push(['Sheets', st.units === 'in' ? `${R.pk.sheets.length} × ${+(st.sheetW / IN).toFixed(2)}×${+(st.sheetH / IN).toFixed(2)}″` : `${R.pk.sheets.length} × ${+st.sheetW.toFixed(1)}×${+st.sheetH.toFixed(1)}`]);
+  rows.push(['Cut length', st.units === 'in' ? (R.cut / IN / 12).toFixed(1) + ' ft' : (R.cut / 1000).toFixed(2) + ' m']);
+  if (R.score) rows.push(['Score length', st.units === 'in' ? (R.score / IN / 12).toFixed(1) + ' ft' : (R.score / 1000).toFixed(2) + ' m']);
+  $('#stats').innerHTML = rows.map(r => `<div><dt>${r[0]}</dt><dd>${r[1]}</dd></div>`).join('');
+  $('#parts').innerHTML = R.res.parts.reduce((acc, p) => { const base = p.name.replace(/ \d+$/, ''); const f = acc.find(a => a.n === base); if (f) f.c += p.count; else acc.push({ n: base, c: p.count }); return acc; }, [])
+    .map(p => `<li><b>${p.c}×</b> ${p.n}${p.c > 1 && !/s$/.test(p.n) ? 's' : ''}</li>`).join('');
+  const w = [...R.res.warn, ...R.pk.warn];
+  $('#warn').innerHTML = w.map(x => `<div class="w ${x.lvl}">${x.msg}</div>`).join('');
+}
+function renderSheet() {
+  const sheets = R.pk.sheets;
+  $('#sheet-tabs').innerHTML = sheets.length > 1 ? sheets.map((s, i) => `<button data-i="${i}" class="${i === curSheet ? 'on' : ''}">Sheet ${i + 1}</button>`).join('') : '';
+  const sh = sheets[curSheet];
+  if (!sh) { $('#sheet').innerHTML = '<p class="empty">Nothing to cut.</p>'; return; }
+  const [W, H] = sheetDims(sh);
+  $('#sheet').innerHTML = P.sheetSVG(sh, W, H, { preview: true, bg: '#f4ead8' }).replace(/width="[\d.]+mm" height="[\d.]+mm"/, 'width="100%" preserveAspectRatio="xMidYMid meet"');
+  $('#sheet-cap').textContent = Object.entries(sh.counts).map(([k, v]) => `${v} ${k.replace(/ \d+$/, '')}`).reduce((a, s) => { const m = s.match(/^(\d+) (.*)$/); const f = a.find(x => x[1] === m[2]); if (f) f[0] += +m[1]; else a.push([+m[1], m[2]]); return a; }, []).map(x => `${x[0]} × ${x[1]}`).join(' · ');
+  $('#dl-svg').textContent = `SVG · sheet ${curSheet + 1}`;
+  $('#dl-dxf').textContent = `DXF · sheet ${curSheet + 1}`;
+}
+
+function renderJig() {
+  const card = $('#jigcard'), on = st.mode === 'finger' && st.fingerStyle === 'bevel';
+  card.hidden = !on; if (!on) return;
+  const J = R.jig, deg = x => (x * 180 / Math.PI).toFixed(1) + '°';
+  if (!J) { $('#jig-body').innerHTML = '<p class="foot">A cube meets at exactly 90°, so its teeth are already square. Cut the faces flat and you\'re done. No jig needed.</p>'; return; }
+  const rows = [
+    ['Jig tilt', deg(J.phi)], ['Faces per run', J.K + ''], ['Runs × edges', `${J.runs} × ${J.passes}`],
+    ['Tip cut height', u(J.zTip)], ['Notch cut height', u(J.zNotch)], ['Face goes in', J.outerDown ? 'Outside face down' : 'Outside face up'],
+  ];
+  $('#jig-body').innerHTML = `<dl class="jstats">${rows.map(r => `<div><dt>${r[0]}</dt><dd>${r[1]}</dd></div>`).join('')}</dl>
+    <div class="jprev">${P.stationSVG(J.station, { preview: true, bg: '#f4ead8' }).replace(/width="[\d.]+mm" height="[\d.]+mm"/, 'width="100%" preserveAspectRatio="xMidYMid meet"')}</div>
+    <div class="legend"><span><i style="background:#ff0000"></i>Base, cut in place</span><span><i style="background:#ff8000"></i>Tip bevels</span><span><i style="background:#a000ff"></i>Notch bevels</span><span><i style="background:#e2c08d"></i>Faces in pockets</span></div>
+    <ol class="jsteps">
+      <li><b>Cut the faces flat</b> from the main cut sheet. The hairline slits at each notch are intentional: they let the wedges drop out later.</li>
+      <li><b>Cut the jig parts</b> (ribs, deck, pocket strip) from ${st.t} mm stock. Glue the strip onto the deck, then push the rib tabs up into the deck slots.</li>
+      <li><b>Lay a scrap sheet on the bed and run only the red layer of the jig station file</b>, with Start From set to <b>Absolute Coords</b>. Leave the cut base and the scrap frame around it exactly where they are, and tape them down.</li>
+      <li><b>Plug the rib tabs into the base slots.</b> The deck now sits at ${deg(J.phi)}, with the pockets at the back edge.</li>
+      <li><b>Drop ${J.K} faces into the pockets, ${J.outerDown ? 'outside face DOWN' : 'outside face UP'}.</b> Gravity seats each one in its V.</li>
+      <li><b>Run the orange layer, then the purple layer.</b> They're at different heights: focus ${u(J.zTip)} and ${u(J.zNotch)} above the bed (LightBurn per-layer Z offset, or move the bed between layers). The angled cut is ${(st.t / Math.cos(J.phi)).toFixed(1)} mm thick, so slow down or add a pass.</li>
+      <li><b>Turn every face one position the same way</b> and run orange and purple again. Do this ${J.passes} times, then load the next ${J.K} faces (${J.runs} runs in all).</li>
+      <li><b>Test first:</b> bevel two faces, push one edge together, and adjust Fit before doing the rest. If the bevels land a hair off, nudge the orange and purple layers together in LightBurn.</li>
+    </ol>
+    <div class="dls"><button class="btn" id="dl-jparts">Jig parts SVG</button><button class="btn" id="dl-jstation">Jig station SVG</button></div>`;
+  $('#dl-jparts').onclick = () => { const pk = P.pack(J.parts, st.sheetW, st.sheetH, st.margin, st.spacing); dl(`${baseName()}-jig-parts.svg`, P.sheetSVG(pk.sheets[0], st.sheetW, st.sheetH)); };
+  $('#dl-jstation').onclick = () => dl(`${baseName()}-jig-station.svg`, P.stationSVG(J.station));
+}
+
+function guideText() {
+  const S = R.S, n = S.faces.length;
+  if (st.mode === 'tab') return [
+    'Cut the fit coupon first in the same sheet. Push a bracket tab into each slot. Pick the one that needs firm thumb pressure, then add that number to Fit. (The middle "0" slot is your current setting.)',
+    `Every face is identical and every bracket is identical (${R.res.info.per * S.edges.length} brackets). No sorting needed.`,
+    'Push a bracket into one slot of a face from the inside. The tab ends flush with the outside.',
+    'Each face slides straight on, perpendicular to itself. So build outward from one face, adding brackets to open edges as you go.',
+    'The last face drops straight down onto its brackets. That\'s the whole point of this joint: no wrestling the final piece.',
+    'If a joint is loose, a dot of wood glue on the tab from inside fixes it. Tight? Raise Fit by 0.05 mm.',
+  ];
+  if (st.mode === 'finger') return [
+    `Every face is identical: ${S.faces.length} pieces, ${R.res.info.finger.N} fingers per edge. Each edge starts with a finger at one corner and ends with a notch at the other, so any face meets any other face.`,
+    'The fingers are offset for the ' + (S.dihedral * 180 / Math.PI).toFixed(2) + '° angle between faces, so the faces lock at exactly the right angle once they\'re pushed together. That makes them self-jigging.',
+    'Build outward from one face. Each new face goes on straight, perpendicular to itself, and the last face drops in the same way.',
+    st.fingerStyle === 'bevel' ? 'Bevelled teeth: every tooth tip and notch bottom is cut at the face angle, so the joint closes with no gaps and nothing to sand. Cut the faces flat, then bevel them in the jig (see the Bevel jig card).' : st.fingerStyle === 'full' ? 'Full teeth stand slightly proud along the edges. Glue up, then sand or file them flush for crisp edges.' : 'Flush teeth never stick out. ' + (S.dihedral > Math.PI / 2 + 0.01 ? 'On this solid you\'ll see small V-notches beside each tooth along the edges, which is normal for angled finger joints. Switch to Full teeth and sand if you want them filled.' : 'The edges come out clean.'),
+    'Wood glue on the fingers makes it permanent. For a dry fit, raise Fit by 0.05 mm at a time until it goes together with firm hand pressure.',
+  ];
+  if (st.mode === 'block') return [
+    'Faces have no visible joints. Angle blocks are glued inside, one per edge, and they set the angle for you.',
+    'Glue a block to one face, centred on an edge, flat against the inside surface with its tip at the face edge.',
+    'Bring the next face down onto the block\'s other side. The faces touch along their inside corners.',
+    'Use the two angle jigs on the outside to check edges while the glue sets. For acrylic, use solvent cement on the blocks.',
+  ];
+  if (st.mode === 'none') return [
+    'Edge-glued panels: faces are shrunk so their inside corners meet exactly at the right angle. You get a crisp V-groove on every outside edge.',
+    'Glue only touches along a line, so this is best for acrylic with solvent cement, or for small pieces. Fill the grooves with glue or putty if you like.',
+    'The two angle jigs sit over an edge from outside to hold it at exactly ' + (S.dihedral * 180 / Math.PI).toFixed(2) + '° while it sets.',
+  ];
+  return [
+    `One-piece net: ${n} faces. Blue lines are folds (score at low power, or pick "perforated" to cut dashes).`,
+    'Fold every line the same way, with the printed or engraved side out. Then glue each tab under its neighbouring face.',
+    'Close the last face using a tab on its long side. A dab of glue and a fingertip from the open side does it.',
+    st.dice ? `Dice numbers are already placed so opposite faces add up to ${n === 4 ? '— (d4 is different)' : n + 1}.` : 'Tip: turn on Dice numbers to make a working d' + n + '.',
+  ];
+}
+function renderGuide() { $('#guide').innerHTML = guideText().map(s => `<li>${s}</li>`).join(''); }
+
+/* ---------- 3D ---------- */
+const anim = { t: 0, dir: 1, playing: false };
+let yaw = 0.6, pitch = -0.35, dragging = false, lastX = 0, lastY = 0, idle = 0, sceneDirty = true, scene = [], viewR = 1;
+const cv = $('#view');
+let ctx = null;
+function updPlay() { $('#play').textContent = anim.playing ? '❚❚' : '▶'; $('#slider').value = Math.round(anim.t * 1000); }
+function rotAbout(pa, pb, th) {
+  const k = V.norm([pb[0] - pa[0], pb[1] - pa[1], 0]), c = Math.cos(th), s = Math.sin(th), o = [pa[0], pa[1], 0];
+  return x => { const v = V.sub(x, o); return V.add(V.add(V.add(V.mul(v, c), V.mul(V.cross(k, v), s)), V.mul(k, V.dot(k, v) * (1 - c))), o); };
+}
+const WOOD = [222, 184, 135], WOOD_IN = [176, 140, 98], GRAIN = [150, 108, 66], BRK = [235, 120, 80], PAPER = [246, 240, 228], PAPER_IN = [214, 196, 168], TAB = [196, 168, 130];
+function buildScene() {
+  if (solo === 'jig' && R.jig) return buildJigScene();
+  const S = R.S, L = R.L, out = [];
+  if (st.mode === 'net') {
+    const inf = R.res.info; if (!inf.lay) return out;
+    const n = S.sides, pos = inf.pos, lay = inf.lay, th = (Math.PI - S.dihedral) * anim.t, M = [];
+    const getM = f => { if (M[f]) return M[f]; const pr = lay.parent[f]; if (!pr) return (M[f] = x => x); const pm = getM(pr.f), pp = pos[pr.f], Rr = rotAbout(pp[pr.i], pp[(pr.i + 1) % n], th); return (M[f] = x => pm(Rr(x))); };
+    pos.forEach((pp, f) => out.push({ pts: pp.map(q => getM(f)([q[0], q[1], 0])), col: PAPER, back: PAPER_IN, line: 1 }));
+    if (ART && R.res.artFace && R.res.artFace.net) R.res.artFace.net.forEach(({ f, c, a }) => {
+      const r = R.res.artFace.r, ca = Math.cos(a), sa = Math.sin(a), m = getM(f);
+      ART.polys.forEach(pl => out.push({ art: true, closed: pl.closed, pts: pl.pts.map(p => m([c[0] + (p[0] * ca - p[1] * sa) * r, c[1] + (p[0] * sa + p[1] * ca) * r, 0.05])) }));
+    });
+    inf.tabs.forEach(tb => {
+      const pp = pos[tb.f], Rr = rotAbout(pp[tb.i], pp[(tb.i + 1) % n], Math.min(1, anim.t * 1.15) * (Math.PI - S.dihedral) + 0.0), m = getM(tb.f);
+      out.push({ pts: tb.poly.map(q => m(Rr([q[0], q[1], 0]))), col: TAB, back: TAB, line: 1 });
+    });
+    let c = [0, 0, 0], cnt = 0; out.forEach(p => p.pts.forEach(q => { c = V.add(c, q); cnt++; })); c = V.mul(c, 1 / cnt);
+    // flat net lies in the "floor" plane: rotate so z becomes y-up-ish
+    out.forEach(p => { p.pts = p.pts.map(q => { const v = V.sub(q, c); return [v[0], -v[2], -v[1]]; }); });
+    return out;
+  }
+  const inf = R.res.info, t = st.t, sc = inf.ap / inf.a, ex = anim.t * L * 0.7;
+  const holes = (R.res.parts[0] && R.res.parts[0].cuts.slice(1).map(c => c.pts)) || [];
+  const p0 = P.ngon(S.sides, 10)[0], th0 = Math.atan2(p0[1], p0[0]);
+  const outline2 = inf.finger ? inf.finger.poly : P.ngon(S.sides, inf.ap);
+  S.faces.forEach((f, fi) => {
+    const g0 = out.length;
+    const c = V.mul(f.c, L), off = V.mul(f.n, solo === 'all' ? ex : 0);
+    const U = V.norm(V.sub(V.mul(S.verts[f.v[0]], L), c)), Wd = V.cross(f.n, U);
+    const map2 = (q, depth) => { const r = Math.hypot(q[0], q[1]), a = Math.atan2(q[1], q[0]) - th0; return V.add(V.add(c, off), V.add(V.add(V.mul(U, r * Math.cos(a)), V.mul(Wd, r * Math.sin(a))), V.mul(f.n, -depth))); };
+    const outer = (inf.finger && inf.finger.outer ? inf.finger.outer : outline2).map(q => map2(q, 0)), inner = (inf.finger && inf.finger.inner ? inf.finger.inner : outline2).map(q => map2(q, t));
+    const h0 = holes.map(h => h.map(q => map2(q, 0))), h1 = holes.map(h => h.map(q => map2(q, t)));
+    out.push({ pts: outer, holes: h0, col: WOOD, back: WOOD_IN, line: 1, face: true });
+    out.push({ pts: inner.slice().reverse(), holes: h1.map(h => h.slice().reverse()), col: WOOD_IN, back: WOOD_IN, edge: false });
+    if (ART && R.res.artFace && (st.artWhere !== 'one' || fi === 0)) {
+      const r = R.res.artFace.r, a = R.res.artFace.rot, ca = Math.cos(a), sa = Math.sin(a);
+      ART.polys.forEach(pl => out.push({ art: true, closed: pl.closed, pts: pl.pts.map(p => map2([(p[0] * ca - p[1] * sa) * r, (p[0] * sa + p[1] * ca) * r], -0.04)) }));
+    }
+    h0.forEach((h, hi) => { for (let i = 0; i < h.length; i++) { const j = (i + 1) % h.length; out.push({ pts: [h[j], h[i], h1[hi][i], h1[hi][j]], col: GRAIN, back: GRAIN, zb: -L * 0.06 }); } });
+    for (let i = 0; i < outer.length; i++) { const j = (i + 1) % outer.length; out.push({ pts: [outer[i], outer[j], inner[j], inner[i]], col: GRAIN, back: GRAIN, zb: -L * 0.06 }); }
+    for (let i = g0; i < out.length; i++) out[i].grp = 'f' + fi;
+  });
+  if (inf.br && inf.per > 0) {
+    const fr = P.bracketFrame(S, L, inf.xs);
+    const BRK_SIDE = [196, 92, 58];
+    let bi = 0;
+    fr.forEach(arr => arr.forEach(F3 => {
+      const g0 = out.length;
+      const z = V.norm(V.cross(F3.x, F3.y));
+      const at = (q, h2) => V.add(V.add(F3.M, V.mul(z, h2)), V.add(V.mul(F3.x, q[0]), V.mul(F3.y, q[1])));
+      const a = inf.br.map(q => at(q, t / 2)), b = inf.br.map(q => at(q, -t / 2));
+      out.push({ pts: a, col: BRK, back: BRK, line: 1 });
+      out.push({ pts: b.slice().reverse(), col: BRK, back: BRK, line: 1 });
+      for (let i = 0; i < a.length; i++) { const j = (i + 1) % a.length; out.push({ pts: [a[i], b[i], b[j], a[j]], col: BRK_SIDE, back: BRK_SIDE }); }
+      for (let i = g0; i < out.length; i++) out[i].grp = 'b' + bi; bi++;
+    }));
+  }
+  if (solo === 'all') return out;
+  const want = solo === 'face' ? 'f0' : 'b0';
+  const one = out.filter(p => p.grp === want);
+  if (!one.length) return out;
+  let c = [0, 0, 0], cnt = 0; one.forEach(p => p.pts.forEach(q => { c = V.add(c, q); cnt++; })); c = V.mul(c, 1 / cnt);
+  // lay the piece in a canonical frame: its main face toward the viewer
+  const f0 = one[0].pts; let nx = 0, ny = 0, nz = 0;
+  for (let i = 0; i < f0.length; i++) { const a = f0[i], b = f0[(i + 1) % f0.length]; nx += (a[1] - b[1]) * (a[2] + b[2]); ny += (a[2] - b[2]) * (a[0] + b[0]); nz += (a[0] - b[0]) * (a[1] + b[1]); }
+  const nn = V.norm([nx, ny, nz]);
+  let ax = [1, 0, 0]; let best = -1; // longest edge of the main face becomes horizontal
+  for (let i = 0; i < f0.length; i++) { const e = V.sub(f0[(i + 1) % f0.length], f0[i]), l = V.len(e); if (l > best) { best = l; ax = e; } }
+  const uu = V.norm(V.sub(ax, V.mul(nn, V.dot(ax, nn)))), ww = V.cross(nn, uu);
+  const sh = q => { const v = V.sub(q, c); return [V.dot(v, uu), V.dot(v, ww), V.dot(v, nn)]; };
+  one.forEach(p => { p.pts = p.pts.map(sh); if (p.holes) p.holes = p.holes.map(h => h.map(sh)); });
+  return one;
+}
+let solo = 'all';
+function updSolo() {
+  const hasBr = st.mode !== 'net' && R && R.res.info.br && R.res.info.per > 0;
+  if (solo === 'bracket' && !hasBr) solo = 'all';
+  $('#solo').hidden = st.mode === 'net';
+  $('#jig-legend').hidden = solo !== 'jig';
+  $('#solo [data-s=bracket]').hidden = !hasBr;
+  $('#solo [data-s=bracket]').textContent = st.mode === 'block' ? 'Block' : 'Bracket';
+  const hasJig = !!(R && R.jig); if (solo === 'jig' && !hasJig) solo = 'all';
+  $('#solo [data-s=jig]').hidden = !hasJig;
+  $$('#solo button').forEach(b => b.classList.toggle('on', b.dataset.s === solo));
+  $('.vbar').classList.toggle('dim', solo !== 'all');
+}
+
+/* ---------- 3D jig scene (bed frame x right, y back, z up -> render x, z, -y) ---------- */
+const JIG_COL = [178, 150, 112], JIG_SIDE = [130, 104, 72], BASE_COL = [150, 128, 98];
+function prism(out, outer, holes, O, eu, ev, en, th, col, side) {
+  const r3 = b => [b[0], b[2], -b[1]];
+  const Pp = (q, hh) => r3(V.add(O, V.add(V.add(V.mul(eu, q[0]), V.mul(ev, q[1])), V.mul(en, hh))));
+  let o = outer; if (P.area(o) * V.dot(V.cross(eu, ev), en) < 0) o = o.slice().reverse();
+  const top = o.map(q => Pp(q, th)), bot = o.map(q => Pp(q, 0));
+  const hT = holes.map(h => h.map(q => Pp(q, th))), hB = holes.map(h => h.map(q => Pp(q, 0)));
+  out.push({ pts: top, holes: hT, col, back: col, line: 1 });
+  out.push({ pts: bot.slice().reverse(), holes: hB.map(h => h.slice().reverse()), col: side, back: side, edge: false });
+  const wall = (A, B) => { for (let i = 0; i < A.length; i++) { const j = (i + 1) % A.length; out.push({ pts: [A[i], A[j], B[j], B[i]], col: side, back: side }); } };
+  wall(top, bot); hT.forEach((h, i) => wall(h, hB[i]));
+}
+function buildJigScene() {
+  const J = R.jig, T = J.three, t = T.t, out = [], cph = Math.cos(T.phi), sph = Math.sin(T.phi);
+  const st0 = J.station;
+  // base plate (cut in place)
+  prism(out, st0.cuts[0].pts, st0.cuts.slice(1).map(c => c.pts), [0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], t, BASE_COL, JIG_SIDE);
+  // ribs: profile in (y, z), thickness along x
+  T.ribX.forEach(xr => prism(out, T.ribPoly, [], [T.ox + xr - t / 2, 0, 0], [0, 1, 0], [0, 0, 1], [1, 0, 0], t, JIG_COL, JIG_SIDE));
+  // deck + pocket strip in the tilted (x, s) frame
+  const eu = [1, 0, 0], ev = [0, cph, sph], en = [0, -sph, cph], O = [T.ox, T.y0, T.z0];
+  const hx = /^#?([0-9a-f]{6})$/i.exec(st.deckColor || '') || [0, '3f9aa0'], dc = [0, 2, 4].map(i => parseInt(hx[1].slice(i, i + 2), 16));
+  prism(out, T.deckCuts[0].pts, T.deckCuts.slice(1).map(c => c.pts), O, eu, ev, en, t, dc, dc.map(v => Math.round(v * 0.72)));
+  prism(out, T.strip, [], V.add(O, V.mul(en, t)), eu, ev, en, t, [196, 168, 128], JIG_SIDE);
+  // faces seated in the pockets (flat-cut shape, before bevelling)
+  T.xs.forEach(xc => prism(out, T.flatR.map(q => [xc + q[0], T.sC + q[1]]), [], V.add(O, V.mul(en, t)), eu, ev, en, t, WOOD, GRAIN));
+  // laser paths + beams
+  const r3 = b => [b[0], b[2], -b[1]], beamTop = Math.max(J.zTip, J.zNotch) + 40;
+  st0.tips.forEach(pl => { const [a, b] = pl.pts; out.push({ laser: 'tip', closed: false, pts: [r3([a[0], a[1], J.zTip]), r3([b[0], b[1], J.zTip])] }); const m = (a[0] + b[0]) / 2; out.push({ laser: 'tip', closed: false, pts: [r3([m, a[1], beamTop]), r3([m, a[1], J.zTip])] }); });
+  st0.notches.forEach(pl => { const [a, b] = pl.pts; out.push({ laser: 'notch', closed: false, pts: [r3([a[0], a[1], J.zNotch]), r3([b[0], b[1], J.zNotch])] }); });
+  let c = [0, 0, 0], cnt = 0; out.forEach(p => p.pts.forEach(q => { c = V.add(c, q); cnt++; })); c = V.mul(c, 1 / cnt);
+  const sh = q => V.sub(q, c);
+  out.forEach(p => { p.pts = p.pts.map(sh); if (p.holes) p.holes = p.holes.map(h => h.map(sh)); });
+  return out;
+}
+
+function rotM() { const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch); return q => { const x = cy * q[0] + sy * q[2], z = -sy * q[0] + cy * q[2]; return [x, cp * q[1] - sp * z, sp * q[1] + cp * z]; }; }
+function draw(ctx2, W, H, polys, rad, opt = {}) {
+  const rm = rotM(), Dp = rad * 5, scl = Math.min(W, H) * (opt.fill || 0.4) / rad, L = V.norm([-0.45, 0.65, 0.6]);
+  const items = polys.filter(p => !p.art && !p.laser).map(p => {
+    const v = p.pts.map(rm); let nx = 0, ny = 0, nz = 0;
+    for (let i = 0; i < v.length; i++) { const a = v[i], b = v[(i + 1) % v.length]; nx += (a[1] - b[1]) * (a[2] + b[2]); ny += (a[2] - b[2]) * (a[0] + b[0]); nz += (a[0] - b[0]) * (a[1] + b[1]); }
+    const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
+    let z = 0; v.forEach(q => { z += q[2]; }); z = z / v.length + (p.zb || 0);
+    return { p, v, n: [nx, ny, nz], z };
+  }).sort((a, b) => a.z - b.z);
+  ctx2.lineJoin = 'round';
+  items.forEach(it => {
+    const facing = it.n[2] > 0, base = facing ? it.p.col : it.p.back;
+    const lam = Math.abs(V.dot(it.n, L)), k = 0.42 + 0.62 * lam;
+    ctx2.beginPath();
+    it.v.forEach((q, i) => { const f = Dp / (Dp - q[2]), x = W / 2 + (opt.px || 0) + q[0] * scl * f, y = H / 2 + (opt.py || 0) - q[1] * scl * f; i ? ctx2.lineTo(x, y) : ctx2.moveTo(x, y); });
+    ctx2.closePath();
+    ctx2.fillStyle = `rgb(${base.map(c => Math.min(255, Math.round(c * k))).join(',')})`;
+    ctx2.fill();
+    ctx2.strokeStyle = it.p.line ? 'rgba(40,24,12,.55)' : `rgb(${base.map(c => Math.round(c * k * 0.82)).join(',')})`;
+    ctx2.lineWidth = it.p.line ? (opt.lw || 1) : 0.6; ctx2.stroke();
+    if (it.p.decals && facing) it.p.decals.forEach(d => {
+      ctx2.beginPath();
+      d.pts.map(rm).forEach((q, i) => { const f = Dp / (Dp - q[2]), x = W / 2 + (opt.px || 0) + q[0] * scl * f, y = H / 2 + (opt.py || 0) - q[1] * scl * f; i ? ctx2.lineTo(x, y) : ctx2.moveTo(x, y); });
+      ctx2.closePath(); ctx2.fillStyle = `rgb(${d.col.map(c => Math.round(c * (d.col === BRK ? k : 1))).join(',')})`; ctx2.fill();
+      ctx2.strokeStyle = 'rgba(20,12,6,.6)'; ctx2.lineWidth = 0.6; ctx2.stroke();
+    });
+  });
+}
+
+/* ---------- WebGL renderer (true depth buffer) ---------- */
+let G = null;
+function initGL() {
+  const gl = cv.getContext('webgl', { antialias: true, alpha: true, premultipliedAlpha: false });
+  if (!gl || !window.earcut) return null;
+  const sh = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw gl.getShaderInfoLog(o); return o; };
+  const prog = (vs, fs) => { const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p); return p; };
+  const VS_HEAD = 'uniform mat3 uR;uniform float uScl,uDp,uW,uH,uPx,uPy,uZ;vec4 proj(vec3 p){vec3 v=uR*p;float f=uDp/(uDp-v.z);return vec4((v.x*uScl*f+uPx)/(uW*0.5),(v.y*uScl*f-uPy)/(uH*0.5),-v.z/uZ,1.0);}';
+  const pF = prog('attribute vec3 aP,aN,aC,aB;' + VS_HEAD + 'varying vec3 vC,vB;varying float vS;void main(){gl_Position=proj(aP);vec3 n=normalize(uR*aN);vS=0.42+0.62*abs(dot(n,normalize(vec3(-0.45,0.65,0.6))));vC=aC;vB=aB;}',
+    'precision mediump float;varying vec3 vC,vB;varying float vS;void main(){vec3 c=gl_FrontFacing?vC:vB;gl_FragColor=vec4(min(c*vS/255.0,vec3(1.0)),1.0);}');
+  const pL = prog('attribute vec3 aP;' + VS_HEAD + 'void main(){vec4 q=proj(aP);q.z-=0.0015;gl_Position=q;}',
+    'precision mediump float;uniform vec4 uCol;void main(){gl_FragColor=uCol;}');
+  return { gl, pF, pL, fb: gl.createBuffer(), lb: gl.createBuffer(), ab: gl.createBuffer(), tb: gl.createBuffer(), nb: gl.createBuffer(), nF: 0, nL: 0, nA: 0, nT: 0, nN: 0 };
+}
+function upload(polys) {
+  const gl = G.gl, F = [], Ln = [], An = [], Lt = [], Ln2 = [];
+  polys.forEach(p => {
+    if (p.laser) { const v = p.pts; (p.laser === 'tip' ? Lt : Ln2).push(v[0][0], v[0][1], v[0][2], v[1][0], v[1][1], v[1][2]); return; }
+    if (p.art) { const v = p.pts, m = p.closed ? v.length : v.length - 1; for (let i = 0; i < m; i++) { const a = v[i], b = v[(i + 1) % v.length]; An.push(a[0], a[1], a[2], b[0], b[1], b[2]); } return; }
+    const v = p.pts; let nx = 0, ny = 0, nz = 0;
+    for (let i = 0; i < v.length; i++) { const a = v[i], b = v[(i + 1) % v.length]; nx += (a[1] - b[1]) * (a[2] + b[2]); ny += (a[2] - b[2]) * (a[0] + b[0]); nz += (a[0] - b[0]) * (a[1] + b[1]); }
+    const nl = Math.hypot(nx, ny, nz) || 1, n = [nx / nl, ny / nl, nz / nl];
+    const all = [v, ...(p.holes || [])], flat3 = [].concat(...all);
+    let tri;
+    if (v.length === 3 && !p.holes) tri = [0, 1, 2];
+    else if (v.length === 4 && !(p.holes && p.holes.length)) tri = [0, 1, 2, 0, 2, 3];
+    else {
+      const ax = Math.abs(n[0]) > 0.6 ? [0, 0, 1] : [1, 0, 0], u = V.norm(V.cross(n, ax)), w = V.cross(n, u);
+      const flat2 = [], holeIdx = []; let c = 0;
+      all.forEach((ring, ri) => { if (ri) holeIdx.push(c); ring.forEach(q => { flat2.push(V.dot(q, u), V.dot(q, w)); c++; }); });
+      tri = window.earcut(flat2, holeIdx.length ? holeIdx : null, 2);
+    }
+    const B = p.back || p.col;
+    tri.forEach(i => { const q = flat3[i]; F.push(q[0], q[1], q[2], n[0], n[1], n[2], p.col[0], p.col[1], p.col[2], B[0], B[1], B[2]); });
+    if (p.line || p.edge !== false) all.forEach(ring => { for (let i = 0; i < ring.length; i++) { const a = ring[i], b = ring[(i + 1) % ring.length]; Ln.push(a[0], a[1], a[2], b[0], b[1], b[2]); } });
+  });
+  gl.bindBuffer(gl.ARRAY_BUFFER, G.fb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(F), gl.DYNAMIC_DRAW); G.nF = F.length / 12;
+  gl.bindBuffer(gl.ARRAY_BUFFER, G.lb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Ln), gl.DYNAMIC_DRAW); G.nL = Ln.length / 3;
+  gl.bindBuffer(gl.ARRAY_BUFFER, G.ab); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(An), gl.DYNAMIC_DRAW); G.nA = An.length / 3;
+  gl.bindBuffer(gl.ARRAY_BUFFER, G.tb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Lt), gl.DYNAMIC_DRAW); G.nT = Lt.length / 3;
+  gl.bindBuffer(gl.ARRAY_BUFFER, G.nb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Ln2), gl.DYNAMIC_DRAW); G.nN = Ln2.length / 3;
+}
+function rotMat() { const rm = rotM(), a = rm([1, 0, 0]), b = rm([0, 1, 0]), c = rm([0, 0, 1]); return new Float32Array([...a, ...b, ...c]); }
+function drawGL(W, H, rad) {
+  const gl = G.gl; gl.viewport(0, 0, cv.width, cv.height);
+  gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
+  const scl = (solo === 'jig' ? Math.min(W * 0.47, H * 0.75) : Math.min(W, H) * 0.44) * zoom / rad, R3 = rotMat();
+  const setU = p => { gl.useProgram(p); const u = n => gl.getUniformLocation(p, n);
+    gl.uniformMatrix3fv(u('uR'), false, R3); gl.uniform1f(u('uScl'), scl); gl.uniform1f(u('uDp'), rad * 5); gl.uniform1f(u('uW'), W); gl.uniform1f(u('uH'), H);
+    gl.uniform1f(u('uPx'), panX); gl.uniform1f(u('uPy'), panY); gl.uniform1f(u('uZ'), rad * 1.6); };
+  setU(G.pF);
+  gl.bindBuffer(gl.ARRAY_BUFFER, G.fb);
+  const at = (p, n, size, off, stride) => { const l = gl.getAttribLocation(p, n); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, size, gl.FLOAT, false, stride * 4, off * 4); return l; };
+  const ls = [at(G.pF, 'aP', 3, 0, 12), at(G.pF, 'aN', 3, 3, 12), at(G.pF, 'aC', 3, 6, 12), at(G.pF, 'aB', 3, 9, 12)];
+  gl.disable(gl.BLEND); gl.drawArrays(gl.TRIANGLES, 0, G.nF);
+  ls.forEach(l => gl.disableVertexAttribArray(l));
+  setU(G.pL);
+  gl.bindBuffer(gl.ARRAY_BUFFER, G.lb);
+  const lp = at(G.pL, 'aP', 3, 0, 3);
+  gl.uniform4f(gl.getUniformLocation(G.pL, 'uCol'), 0.16, 0.10, 0.05, 0.55);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
+  gl.drawArrays(gl.LINES, 0, G.nL);
+  gl.disableVertexAttribArray(lp);
+  if (G.nA) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, G.ab); const ap = at(G.pL, 'aP', 3, 0, 3);
+    const am = st.artMode; gl.uniform4f(gl.getUniformLocation(G.pL, 'uCol'), am === 'cut' ? 0.05 : 0.30, am === 'cut' ? 0.03 : 0.14, am === 'cut' ? 0.02 : 0.05, 0.95);
+    gl.drawArrays(gl.LINES, 0, G.nA); gl.disableVertexAttribArray(ap);
+  }
+  [[G.tb, G.nT, [1, 0.5, 0]], [G.nb, G.nN, [0.63, 0, 1]]].forEach(([buf, cnt, col]) => {
+    if (!cnt) return; gl.bindBuffer(gl.ARRAY_BUFFER, buf); const lp2 = at(G.pL, 'aP', 3, 0, 3);
+    gl.disable(gl.DEPTH_TEST); gl.uniform4f(gl.getUniformLocation(G.pL, 'uCol'), col[0], col[1], col[2], 1);
+    gl.drawArrays(gl.LINES, 0, cnt); gl.enable(gl.DEPTH_TEST); gl.disableVertexAttribArray(lp2);
+  });
+  gl.depthMask(true);
+}
+
+function frame(ts) {
+  const dpr = Math.min(2, window.devicePixelRatio || 1), W = cv.clientWidth, H = cv.clientHeight;
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  if (anim.playing) {
+    anim.t += anim.dir * 0.006; if (anim.t >= 1) { anim.t = 1; anim.playing = false; } if (anim.t <= 0) { anim.t = 0; anim.playing = false; }
+    updPlay(); sceneDirty = true;
+  }
+  if (!dragging && !ptrs.size && zoom <= 1.05 && ts - idle > 1800) yaw += 0.0035;
+  if (R && sceneDirty) { scene = buildScene(); sceneDirty = false; let r = 0; scene.forEach(p => p.pts.forEach(q => { r = Math.max(r, V.len(q)); })); viewR = viewR ? viewR + (r - viewR) * (anim.playing ? 0.25 : 1) : r; if (G) upload(scene); }
+  if (G) { if (scene.length) drawGL(W, H, viewR); }
+  else { ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H); if (scene.length) draw(ctx, W, H, scene, viewR, { fill: 0.44 * zoom, px: panX, py: panY, lw: Math.min(1.6, 0.8 + zoom * 0.1) }); }
+  requestAnimationFrame(frame);
+}
+const ptrs = new Map(); let pinch = null; let zoom = 1, panX = 0, panY = 0, lastTap = 0;
+const ZMIN = 0.6, ZMAX = 12;
+function zoomAt(sx, sy, nz) {
+  nz = Math.max(ZMIN, Math.min(ZMAX, nz));
+  const W = cv.clientWidth, H = cv.clientHeight, cx = sx - W / 2, cy = sy - H / 2;
+  panX = cx - (cx - panX) * (nz / zoom); panY = cy - (cy - panY) * (nz / zoom); zoom = nz;
+  if (zoom <= 1.001) { panX *= 0.0; panY *= 0.0; }
+  updZoomUI();
+}
+function resetView() { zoom = 1; panX = 0; panY = 0; updZoomUI(); }
+function updZoomUI() { $('#zlvl').textContent = zoom < 1.05 && zoom > 0.95 ? '1×' : (zoom < 10 ? zoom.toFixed(1) : Math.round(zoom)) + '×'; }
+const local = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+cv.addEventListener('pointerdown', e => {
+  cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, local(e)); idle = performance.now();
+  if (ptrs.size === 1) {
+    dragging = true; [lastX, lastY] = local(e);
+    const now = performance.now(); if (now - lastTap < 300) resetView(); lastTap = now;
+  } else if (ptrs.size === 2) {
+    const [a, b] = [...ptrs.values()];
+    pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), m: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], z: zoom };
+    dragging = false;
+  }
+});
+cv.addEventListener('pointermove', e => {
+  if (!ptrs.has(e.pointerId)) return;
+  const pos = local(e); ptrs.set(e.pointerId, pos); idle = performance.now();
+  if (ptrs.size >= 2 && pinch) {
+    const [a, b] = [...ptrs.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    panX += m[0] - pinch.m[0]; panY += m[1] - pinch.m[1];
+    zoomAt(m[0], m[1], pinch.z * d / pinch.d);
+    pinch.m = m;
+    return;
+  }
+  if (!dragging) return;
+  const dx = pos[0] - lastX, dy = pos[1] - lastY;
+  if (e.shiftKey || e.buttons === 2 || e.buttons === 4) { panX += dx; panY += dy; }
+  else { yaw += dx * 0.01 / Math.sqrt(zoom); pitch = Math.max(-1.5, Math.min(1.5, pitch + dy * 0.01 / Math.sqrt(zoom))); }
+  lastX = pos[0]; lastY = pos[1];
+});
+const endPtr = e => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (ptrs.size === 1) { dragging = true; [lastX, lastY] = [...ptrs.values()][0]; } if (!ptrs.size) dragging = false; idle = performance.now(); };
+cv.addEventListener('pointerup', endPtr); cv.addEventListener('pointercancel', endPtr);
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('wheel', e => { e.preventDefault(); const [x, y] = local(e); zoomAt(x, y, zoom * Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015))); idle = performance.now(); }, { passive: false });
+$('#zin').addEventListener('click', () => zoomAt(cv.clientWidth / 2, cv.clientHeight / 2, zoom * 1.5));
+$('#zout').addEventListener('click', () => zoomAt(cv.clientWidth / 2, cv.clientHeight / 2, zoom / 1.5));
+$('#zfit').addEventListener('click', resetView);
+updZoomUI();
+
+/* solid picker icons */
+function icons() {
+  $$('.solid-btn canvas').forEach(c => {
+    const id = c.parentElement.dataset.solid, S = P.solid(id), dpr = Math.min(2, window.devicePixelRatio || 1);
+    c.width = 56 * dpr; c.height = 56 * dpr; const x = c.getContext('2d'); x.scale(dpr, dpr);
+    const polys = S.faces.map(f => ({ pts: f.v.map(v => S.verts[v]), col: [226, 190, 140], back: [226, 190, 140], line: 1 }));
+    const sy = yaw, sp = pitch; yaw = 0.5; pitch = -0.4; draw(x, 56, 56, polys, S.R, { fill: 0.42, lw: 0.8 }); yaw = sy; pitch = sp;
+  });
+}
+
+
+/* ---------- artwork UI + Claude drawing ---------- */
+let sampleFn = null, aiCtl = null;
+if (window.claude && window.claude.use) window.claude.use('sample').then(f => { sampleFn = f || null; $('#ai').hidden = !sampleFn; $('#ai-off').hidden = !!sampleFn; renderArtUI(); }).catch(() => {});
+function bindArt() {
+  $('#art-file').addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    if (f.size > 4e6) { toast('That SVG is over 4 MB. Try simplifying it first.', true); return; }
+    try { setArt(await f.text(), f.name); } catch (err) { toast(err.message || 'Could not read that SVG', true); }
+  });
+  $('#art-clear').addEventListener('click', clearArt);
+  $('#ai-go').addEventListener('click', async () => {
+    const req = $('#ai-prompt').value.trim();
+    if (!req) { $('#ai-prompt').focus(); return; }
+    if (aiCtl) { aiCtl.abort(); return; }
+    const S = P.solid(st.solid), shape = { 3: 'equilateral triangle', 4: 'square', 5: 'regular pentagon' }[S.sides];
+    const prompt = `You are designing artwork that a laser will ${st.artMode === 'cut' ? 'cut through' : 'engrave into'} the face of a wooden ${S.name.toLowerCase()} (each face is an ${shape}). Make one SVG for this request: "${req}".\n\nRules:\n- Reply with ONLY the SVG markup, starting with <svg and ending with </svg>. No commentary, no code fences.\n- Use viewBox="0 0 100 100" and xmlns="http://www.w3.org/2000/svg".\n- One colour only: black. Use filled closed shapes (fill="#000") for solid areas${st.artMode === 'line' ? ', or black strokes for linework' : ''}. No gradients, opacity, filters, images, patterns, masks, clip paths or <text> (draw any lettering as paths).\n- ${st.artMode === 'cut' ? 'It is a stencil: every shape must be a closed outline, and nothing may float inside a cut-out (use bridges).' : 'Bold and simple enough to read at 4–6 cm across. No details thinner than about 1 unit.'}\n- Keep the whole design inside a circle of radius 46 centred at (50,50).\n- Keep the file under 12 KB.`;
+    aiCtl = new AbortController();
+    const btn = $('#ai-go'), stat = $('#ai-status');
+    btn.textContent = 'Stop'; stat.textContent = 'Thinking…';
+    try {
+      const { text } = await sampleFn(prompt, { signal: aiCtl.signal, cache: false, onText: ({ text: tx }) => { stat.textContent = `Drawing… ${(tx.length / 1024).toFixed(1)} KB`; } });
+      const m = text.match(/<svg[\s\S]*<\/svg>/i);
+      if (!m) throw { code: 'no_svg' };
+      setArt(m[0], req.slice(0, 40).replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-').toLowerCase() + '.svg');
+      stat.textContent = 'Done. Not quite right? Edit the prompt and try again.';
+    } catch (e) {
+      const c = e && e.code;
+      stat.textContent = c === 'cancelled' ? 'Stopped.' : c === 'not_granted' || c === 'sampling_disabled' ? "Claude isn't available to this page right now." : c === 'rate_limited' ? 'Too many requests. Wait a minute, then try again.' : c === 'refused' ? "Claude couldn't draw that one. Try describing it differently." : c === 'no_svg' ? "That reply didn't include an SVG. Try again." : 'Something went wrong. Try again.';
+      if (c === 'not_granted' || c === 'sampling_disabled') { $('#ai').hidden = true; }
+    } finally { aiCtl = null; btn.textContent = 'Draw it'; }
+  });
+  try { const saved = JSON.parse(localStorage.getItem('polysmith-art') || 'null'); if (saved && saved.svg) ART = parseArt(saved.svg, saved.name); } catch (e) { ART = null; }
+  renderArtUI();
+}
+
+/* ---------- maximise 3D view ---------- */
+function bindSolo() {
+  $('#deck-color').value = st.deckColor;
+  $('#deck-color').addEventListener('input', e => { st.deckColor = e.target.value; sceneDirty = true; save(); });
+  $('#solo').addEventListener('click', e => { const b = e.target.closest('[data-s]'); if (!b) return; solo = b.dataset.s; updSolo(); resetView(); if (solo === 'jig') { yaw = -0.45; pitch = 0.58; } else if (solo !== 'all') { yaw = 0.35; pitch = -0.5; } else { yaw = 0.6; pitch = -0.35; } idle = performance.now() + 2500; sceneDirty = true; viewR = 0; });
+}
+function bindMax() {
+  const view = $('.view'), btn = $('#zmax');
+  const set = on => {
+    view.classList.toggle('max', on); document.body.classList.toggle('noscroll', on);
+    btn.textContent = on ? '✕' : '⛶'; btn.setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen');
+    sceneDirty = true;
+  };
+  btn.addEventListener('click', async () => {
+    const on = !view.classList.contains('max'); set(on);
+    try { if (on && view.requestFullscreen && !document.fullscreenElement) await view.requestFullscreen(); else if (!on && document.fullscreenElement) await document.exitFullscreen(); } catch (e) { /* frame may refuse; CSS maximise still works */ }
+  });
+  document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && view.classList.contains('max')) set(false); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && view.classList.contains('max')) set(false); });
+}
+
+/* boot */
+try { G = initGL(); } catch (e) { G = null; }
+if (!G) ctx = cv.getContext('2d');
+bind(); bindArt(); bindMax(); bindSolo(); syncInputs(); icons(); compute(); updPlay();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

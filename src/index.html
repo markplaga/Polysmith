@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Polysmith — Platonic Solids for the Laser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#171915;--panel:#20231e;--panel2:#272b25;--line:#363b33;--ink:#efe6d6;--mute:#a49c8c;--wood:#e2c08d;--laser:#ff5a3c;--blue:#5b8cff;--green:#57c26b;--r:14px}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "IBM Plex Sans",system-ui,sans-serif;-webkit-text-size-adjust:100%}
+button,input,select{font:inherit;color:inherit}
+.wrap{max-width:1380px;margin:0 auto;padding:18px 16px 60px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+h1{font-family:Fraunces,serif;font-weight:700;font-size:34px;line-height:1;margin:0;letter-spacing:-.5px}
+h1 span{color:var(--laser)}
+.tag{color:var(--mute);margin:6px 0 0;font-size:14px}
+.seg{display:inline-flex;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}
+.seg button{border:0;background:none;padding:6px 12px;border-radius:999px;cursor:pointer;color:var(--mute);font-size:13px;font-weight:500;white-space:nowrap}
+.seg button.on{background:var(--wood);color:#2a1d0f}
+.grid{display:grid;grid-template-columns:380px 1fr;gap:16px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:1fr;gap:0}.ctl-col,.view-col{display:contents}.view{order:-2}.view-col>section{order:2}.ctl-col>section{order:1}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px}
+.card h2{font:600 11px/1 "IBM Plex Mono",monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin:0 0 12px}
+.solids{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.solid-btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:6px 2px 7px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
+.solid-btn canvas{width:56px;height:56px;max-width:100%}
+.solid-btn b{font:500 12px "IBM Plex Mono",monospace}
+.solid-btn small{font-size:10.5px;color:var(--mute)}
+.solid-btn.on{border-color:var(--wood);background:#3a3122;box-shadow:0 0 0 1px var(--wood) inset}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.modes button{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 10px;text-align:left;cursor:pointer}
+.modes button b{display:block;font-size:13.5px}
+.modes button span{display:block;font-size:11.5px;color:var(--mute);line-height:1.3;margin-top:2px}
+.modes button:last-child{grid-column:span 2}
+.modes button.on{border-color:var(--wood);background:#3a3122;color:var(--ink)}
+.modes button{white-space:normal;color:var(--ink)}
+.row{display:flex;gap:10px;align-items:center;margin:10px 0}
+.row>label{flex:1;font-size:13.5px}
+.row>label small{display:block;color:var(--mute);font-size:11.5px;line-height:1.3}
+.num{display:flex;align-items:center;background:#11130f;border:1px solid var(--line);border-radius:9px;padding:0 9px;width:132px}
+.num input{width:100%;background:none;border:0;padding:8px 0;outline:none;font-family:"IBM Plex Mono",monospace;font-size:14px}
+.num i{font-style:normal;color:var(--mute);font-size:12px;padding-left:4px}
+select{background:#11130f;border:1px solid var(--line);border-radius:9px;padding:8px;width:132px}
+.num:focus-within,select:focus{border-color:var(--wood);outline:none}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:-2px 0 6px}
+.chip{background:none;border:1px dashed var(--line);border-radius:999px;padding:3px 9px;font-size:12px;color:var(--mute);cursor:pointer}
+.chip:hover{color:var(--ink);border-color:var(--wood)}
+input[type=range]{accent-color:var(--wood);width:132px}
+input[type=checkbox]{accent-color:var(--wood);width:18px;height:18px}
+details summary{cursor:pointer;color:var(--mute);font-size:13px;list-style:none;padding:4px 0}
+details summary::before{content:"＋ ";color:var(--wood)}
+details[open] summary::before{content:"－ "}
+.only-net,.only-tab,.only-panel,.only-glue{display:none}
+body[data-mode=net] .only-net,body[data-mode=tab] .only-tab,body:not([data-mode=net]) .only-panel,body[data-mode=block] .only-glue,body[data-mode=none] .only-glue{display:block}
+.row.only-net,.row.only-tab,.row.only-panel,.row.only-fit,.row.only-finger{display:none}
+body[data-mode=tab] .row.only-fit,body[data-mode=finger] .row.only-fit,body[data-mode=finger] .row.only-finger{display:flex}
+body[data-mode=finger] details.brk{display:none}
+body[data-mode=net] .row.only-net,body[data-mode=tab] .row.only-tab,body:not([data-mode=net]) .row.only-panel{display:flex}
+.view{position:relative;background:radial-gradient(120% 90% at 50% 30%,#2b3027 0%,#171915 70%);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:14px}
+#view{display:block;width:100%;height:min(56vh,480px);touch-action:none;cursor:grab}
+.vbar{position:absolute;left:12px;right:12px;bottom:12px;display:flex;align-items:center;gap:10px;background:rgba(23,25,21,.82);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:999px;padding:6px 12px}
+.vbar button{width:32px;height:32px;border-radius:50%;border:0;background:var(--wood);color:#2a1d0f;cursor:pointer;font-size:12px;flex:none}
+.vbar input{flex:1;width:auto}
+.vbar span{font:500 11px "IBM Plex Mono",monospace;color:var(--mute);letter-spacing:.1em;text-transform:uppercase;min-width:58px}
+.badge{position:absolute;left:14px;top:12px;font:500 12px "IBM Plex Mono",monospace;color:var(--mute)}
+.badge b{color:var(--ink);font-family:Fraunces,serif;font-size:20px;font-weight:500;display:block}
+.hint{position:absolute;left:14px;right:70px;top:14px;font-size:11.5px;color:var(--mute);pointer-events:none}
+.hm{display:none}@media (hover:none){.hd{display:none}.hm{display:inline}}
+.zbar{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;align-items:center;gap:6px;background:rgba(23,25,21,.82);border:1px solid var(--line);border-radius:999px;padding:6px}
+.zbar button{width:36px;height:36px;border-radius:50%;border:0;background:var(--panel2);color:var(--ink);font-size:20px;line-height:1;cursor:pointer}
+.zbar button:hover{background:#3a3122}
+#zlvl{font:500 11px 'IBM Plex Mono',monospace;color:var(--mute)}
+dl#stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:8px;margin:0}
+dl#stats div{background:var(--panel2);border-radius:10px;padding:8px 10px}
+dt{font-size:11px;color:var(--mute)}dd{margin:2px 0 0;font:500 15px "IBM Plex Mono",monospace}
+#parts{list-style:none;margin:12px 0 0;padding:0;display:flex;gap:8px;flex-wrap:wrap}
+#parts li{background:#3a3122;border:1px solid #5a4a30;border-radius:999px;padding:4px 11px;font-size:13px}
+#warn .w{border-radius:10px;padding:9px 12px;font-size:13.5px;margin-top:10px}
+.w.err{background:#4a1f17;border:1px solid #8a3426}.w.warn{background:#463a17;border:1px solid #7d6826}.w.info{background:#1d3240;border:1px solid #2d5068}
+#sheet{background:#0f110d;border-radius:10px;padding:8px;line-height:0}
+#sheet svg{max-height:62vh;display:block;margin:auto;border-radius:4px}
+#sheet-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+#sheet-tabs button{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:4px 10px;font-size:12.5px;cursor:pointer}
+#sheet-tabs button.on{border-color:var(--wood);color:var(--wood)}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--mute);margin-top:8px;flex-wrap:wrap}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
+#sheet-cap{font:12px "IBM Plex Mono",monospace;color:var(--mute);margin-top:6px}
+.dls{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.btn{border:1px solid var(--line);background:var(--panel2);border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:500;font-size:14px}
+.btn.primary{background:var(--laser);border-color:var(--laser);color:#fff}
+.btn:hover{filter:brightness(1.1)}
+ol#guide{margin:0;padding-left:20px}ol#guide li{margin:6px 0;font-size:14px}
+.foot{color:var(--mute);font-size:12.5px;margin-top:10px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);opacity:0;background:var(--ink);color:#1a1a1a;padding:10px 16px;border-radius:999px;font-weight:500;transition:.25s;pointer-events:none;z-index:9}
+.toast.show{opacity:1;transform:translate(-50%,0)}.toast.bad{background:#ff9b8a}
+.linkbtn{background:none;border:0;color:var(--mute);text-decoration:underline;cursor:pointer;font-size:12.5px;padding:0}
+
+.view.max{position:fixed;inset:0;z-index:50;border-radius:0;margin:0;border:0;background:radial-gradient(120% 90% at 50% 30%,#2b3027 0%,#111310 75%)}
+.view.max #view{height:100vh;height:100dvh}
+.view:fullscreen{width:100%;height:100%}
+body.noscroll{overflow:hidden}
+.art-row{display:flex;gap:12px;align-items:center}
+#art-thumb{width:72px;height:72px;flex:none;border-radius:10px;background:#f4ead8;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#art-thumb img{width:88%;height:88%;object-fit:contain}
+#art-thumb span{font-size:10.5px;color:#8a7d66;text-align:center;padding:4px}
+.art-meta{flex:1;min-width:0}#art-name{font-size:13px;color:var(--mute);margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.art-btns{display:flex;gap:6px}
+.btn.small{padding:7px 11px;font-size:13px;display:inline-block;cursor:pointer}
+.btn.ghost{background:none}
+#ai{margin-top:12px}
+#ai textarea{width:100%;background:#11130f;border:1px solid var(--line);border-radius:9px;padding:9px;font:inherit;font-size:14px;resize:vertical;color:var(--ink)}
+#ai textarea:focus{outline:none;border-color:var(--wood)}
+.ai-row{display:flex;gap:10px;align-items:center;margin-top:6px}#ai-status{font-size:12px;color:var(--mute)}
+.jstats{display:grid;grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:8px;margin:0 0 12px}.jstats div{background:var(--panel2);border-radius:10px;padding:8px 10px}
+.jprev{background:#0f110d;border-radius:10px;padding:8px;line-height:0}.jprev svg{display:block;max-height:40vh;margin:auto}
+ol.jsteps{padding-left:20px;margin:12px 0 0}ol.jsteps li{margin:6px 0;font-size:13.5px}
+.solo{position:absolute;left:12px;top:36px;background:rgba(23,25,21,.82)}
+.solo button{padding:6px 11px}
+.vbar.dim{opacity:.45}
+.jleg{position:absolute;left:12px;top:76px;display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--mute);background:rgba(23,25,21,.7);padding:5px 10px;border-radius:999px;max-width:calc(100% - 90px)}
+.dcol{display:inline-flex;align-items:center;gap:6px;cursor:pointer}.dcol input{width:26px;height:20px;padding:0;border:1px solid var(--line);border-radius:5px;background:none;cursor:pointer}
+.jleg i{display:inline-block;width:12px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
+</style>
+</head>
+<body data-mode="tab">
+<div class="wrap">
+<header>
+  <div>
+    <h1>Poly<span>smith</span></h1>
+    <p class="tag">Platonic solids for the laser. Thickness and kerf are handled for you, and every joint is checked in 3D.</p>
+  </div>
+  <div class="seg" data-seg="units"><button data-v="mm">mm</button><button data-v="in">inches</button></div>
+</header>
+
+<div class="grid">
+<div class="ctl-col">
+  <section class="card">
+    <h2>1 · Solid</h2>
+    <div class="solids">
+      <button class="solid-btn" data-solid="tetra"><canvas></canvas><b>d4</b><small>Tetra</small></button>
+      <button class="solid-btn" data-solid="cube"><canvas></canvas><b>d6</b><small>Cube</small></button>
+      <button class="solid-btn" data-solid="octa"><canvas></canvas><b>d8</b><small>Octa</small></button>
+      <button class="solid-btn" data-solid="dodeca"><canvas></canvas><b>d12</b><small>Dodeca</small></button>
+      <button class="solid-btn" data-solid="icosa"><canvas></canvas><b>d20</b><small>Icosa</small></button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>2 · Construction</h2>
+    <div class="modes seg" data-seg="mode" style="display:grid;border:0;background:none;padding:0;border-radius:0">
+      <button data-v="tab"><b>Slot &amp; bracket</b><span>Glue-free press fit. Wood, MDF, acrylic.</span></button>
+      <button data-v="finger"><b>Finger joints</b><span>Interlocking edges, set to this solid's angle.</span></button>
+      <button data-v="block"><b>Glue blocks</b><span>Clean faces with hidden inside blocks.</span></button>
+      <button data-v="none"><b>Edge-glued</b><span>Bare panels plus angle jigs. Acrylic.</span></button>
+      <button data-v="net"><b>Folding net</b><span>One piece. Card, paper, chipboard.</span></button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>3 · Size &amp; material</h2>
+    <div class="row"><label>Size measured as</label>
+      <select data-k="measure"><option value="edge">Edge length</option><option value="sphere">Across points</option><option value="height">Height on table</option></select></div>
+    <div class="row"><label>Size</label><div class="num"><input data-k="size" inputmode="decimal"><i data-unit></i></div></div>
+    <div class="row only-panel"><label>Material thickness<small>Measure with calipers. Sheets vary.</small></label><div class="num"><input data-k="t" inputmode="decimal"><i data-unit></i></div></div>
+    <div class="chips only-panel"><button class="chip" data-t="3">3 mm</button><button class="chip" data-t="3.175">⅛″</button><button class="chip" data-t="5.5">5.5 mm</button><button class="chip" data-t="6.35">¼″</button></div>
+    <div class="row only-panel"><label>Kerf<small>Width your beam removes</small></label><div class="num"><input data-k="kerf" inputmode="decimal"><i data-unit></i></div></div>
+    <div class="row only-fit"><label>Fit<small>+ looser · − tighter</small></label><div class="num"><input data-k="fit" inputmode="decimal"><i data-unit></i></div></div>
+    <div class="row only-finger"><label>Finger width<small>0 = auto (about 2.5× thickness)</small></label><div class="num"><input data-k="fingerW" inputmode="decimal"><i data-unit></i></div></div>
+    <div class="row only-finger"><label>Teeth<small>Bevelled teeth close with no gaps.</small></label><select data-k="fingerStyle"><option value="flush">Flush (square cut)</option><option value="full">Full (sand flush)</option><option value="bevel">Bevelled (tightest, needs jig)</option></select></div>
+    <div class="row only-net"><label>Glue tab height</label><div class="num"><input data-k="tabH" inputmode="decimal"><i data-unit></i></div></div>
+    <div class="row only-net"><label>Fold lines</label><select data-k="fold"><option value="score">Score layer (blue)</option><option value="perf">Perforated cut</option></select></div>
+    <div class="row only-net"><label>Copies</label><div class="num"><input data-k="copies" inputmode="numeric"><i></i></div></div>
+    <div class="row"><label>Dice numbers<small>Engraved; opposite faces add to N+1</small></label><input type="checkbox" data-k="dice"></div>
+  </section>
+
+  <section class="card only-panel">
+    <h2>4 · Details</h2>
+    <div class="row"><label>Face window</label><select data-k="window"><option value="none">None</option><option value="circle">Circle</option><option value="poly">Polygon</option><option value="star">Star</option></select></div>
+    <div class="row"><label>Window size <span id="wpct-out"></span></label><input type="range" min="10" max="100" step="1" data-k="windowPct"></div>
+    <details class="brk"><summary>Bracket tuning</summary>
+      <div class="row"><label>Brackets per edge</label><div class="seg" data-seg="perEdge"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button></div></div>
+      <div class="row"><label>Tab / block length<small>0 = auto (3× thickness)</small></label><div class="num"><input data-k="tabLen" inputmode="decimal"><i data-unit></i></div></div>
+      <div class="row only-tab"><label>Tab stands proud<small>Extra length past the outside face</small></label><div class="num"><input data-k="protrude" inputmode="decimal"><i data-unit></i></div></div>
+    </details>
+  </section>
+
+
+  <section class="card">
+    <h2>Artwork on the faces</h2>
+    <div class="art-row">
+      <div id="art-thumb"></div>
+      <div class="art-meta">
+        <div id="art-name">Upload an SVG</div>
+        <div class="art-btns"><label class="btn small">Upload SVG<input type="file" id="art-file" accept=".svg,image/svg+xml" hidden></label><button class="btn small ghost" id="art-clear" hidden>Remove</button></div>
+      </div>
+    </div>
+    <div id="ai" hidden>
+      <textarea id="ai-prompt" rows="2" placeholder="Describe it, e.g. &quot;a fox curled up asleep, bold woodcut style&quot;"></textarea>
+      <div class="ai-row"><button class="btn small primary" id="ai-go">Draw it</button><span id="ai-status">Claude draws an SVG made for the laser.</span></div>
+    </div>
+    <p id="ai-off" class="foot" style="margin-top:8px">Open this page in the Claude app to describe artwork and have Claude draw it.</p>
+    <div class="art-opt row"><label>Laser does</label><select data-k="artMode"><option value="fill">Fill engrave (black layer)</option><option value="line">Line engrave (green)</option><option value="cut">Cut through (stencil)</option></select></div>
+    <div class="art-opt row"><label>Size</label><input type="range" min="20" max="150" step="1" data-k="artScale"></div>
+    <div class="art-opt row"><label>Rotate</label><input type="range" min="0" max="355" step="5" data-k="artRot"></div>
+    <div class="art-opt row"><label>Put it on</label><select data-k="artWhere"><option value="all">Every face</option><option value="one">One face</option></select></div>
+  </section>
+  <section class="card">
+    <h2>5 · Sheet</h2>
+    <div class="row"><label>Stock size</label><select data-k="sheetPreset">
+      <option value="304.8x304.8">12 × 12″</option><option value="304.8x508">12 × 20″</option><option value="304.8x609.6">12 × 24″</option><option value="457.2x609.6">18 × 24″</option><option value="609.6x914.4">24 × 36″</option>
+      <option value="300x300">300 × 300 mm</option><option value="600x400">600 × 400 mm</option><option value="900x600">900 × 600 mm</option><option value="1300x900">1300 × 900 mm</option><option value="custom">Custom</option></select></div>
+    <div class="row"><label>Width</label><div class="num"><input data-k="sheetW" inputmode="decimal"><i data-unit></i></div></div>
+    <div class="row"><label>Height</label><div class="num"><input data-k="sheetH" inputmode="decimal"><i data-unit></i></div></div>
+    <div class="row"><label>Part spacing</label><div class="num"><input data-k="spacing" inputmode="decimal"><i data-unit></i></div></div>
+    <div class="row"><label>Edge margin</label><div class="num"><input data-k="margin" inputmode="decimal"><i data-unit></i></div></div>
+    <button class="linkbtn" id="reset">Reset everything</button>
+  </section>
+</div>
+
+<div class="view-col">
+  <div class="view">
+    <canvas id="view"></canvas>
+    <div class="hint"><span class="hd">drag to spin · scroll to zoom · shift-drag to pan · double-click to reset</span><span class="hm">drag to spin · pinch to zoom · two fingers to pan</span></div>
+    <div class="seg solo" id="solo"><button data-s="all">Whole</button><button data-s="face">One face</button><button data-s="bracket">Bracket</button><button data-s="jig">Jig</button></div>
+    <div id="jig-legend" class="jleg" hidden><span><i style="background:#ff8000"></i>Tip cuts</span><span><i style="background:#a000ff"></i>Notch cuts</span><label class="dcol">Deck colour <input type="color" id="deck-color"></label></div>
+    <div class="zbar"><button id="zin" aria-label="Zoom in">+</button><span id="zlvl">1×</span><button id="zout" aria-label="Zoom out">−</button><button id="zfit" aria-label="Reset view">⤢</button><button id="zmax" aria-label="Full screen">⛶</button></div>
+    <div class="vbar"><button id="play">▶</button><span class="only-net" style="display:none">Fold</span><span class="lbl-x">Explode</span><input type="range" id="slider" min="0" max="1000" value="0"></div>
+  </div>
+  <style>body[data-mode=net] .lbl-x{display:none}body[data-mode=net] .vbar .only-net{display:inline!important}</style>
+
+  <section class="card">
+    <dl id="stats"></dl>
+    <ul id="parts"></ul>
+    <div id="warn"></div>
+  </section>
+
+  <section class="card">
+    <h2>Cut sheet</h2>
+    <div id="sheet-tabs"></div>
+    <div id="sheet"></div>
+    <div id="sheet-cap"></div>
+    <div class="legend"><span><i style="background:#ff0000"></i>Cut</span><span><i style="background:#0000ff"></i>Score / fold</span><span><i style="background:#00a000"></i>Line engrave</span><span><i style="background:#000;outline:1px solid #555"></i>Fill engrave</span></div>
+    <div class="dls">
+      <button class="btn primary" id="dl-zip">Download everything (.zip)</button>
+      <button class="btn" id="dl-svg">SVG</button>
+      <button class="btn" id="dl-dxf">DXF</button>
+      <button class="btn only-tab" id="dl-coupon" style="display:none">Fit-test coupon</button>
+    </div>
+    <style>body[data-mode=tab] #dl-coupon{display:inline-block!important}</style>
+    <p class="foot">Files are in millimetres at 1:1 with hairline strokes. LightBurn, Glowforge, xTool and RDWorks all read them. The zip has every sheet as SVG and DXF, plus a README.</p>
+  </section>
+
+
+  <section class="card" id="jigcard" hidden>
+    <h2>Bevel jig</h2>
+    <div id="jig-body"></div>
+  </section>
+  <section class="card">
+    <h2>Assembly</h2>
+    <ol id="guide"></ol>
+  </section>
+</div>
+</div>
+</div>
+<div class="toast" id="toast"></div>
+<script>/* earcut 2.2.4 — (c) 2016 Mapbox, ISC License */
+/*EARCUT*/</script>
+<script>/*GEOM*/</script>
+<script>/*APP*/</script>
+</body>
+</html>
