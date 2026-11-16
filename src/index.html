@@ -108,7 +108,8 @@ body.noscroll{overflow:hidden}
 #art-thumb img{width:88%;height:88%;object-fit:contain}
 #art-thumb span{font-size:10.5px;color:#8a7d66;text-align:center;padding:4px}
 .art-meta{flex:1;min-width:0}#art-name{font-size:13px;color:var(--mute);margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.art-btns{display:flex;gap:6px}
+.art-btns{display:flex;gap:6px;flex-wrap:wrap}
+.lib-row{margin-top:12px}
 .btn.small{padding:7px 11px;font-size:13px;display:inline-block;cursor:pointer}
 .btn.ghost{background:none}
 #ai{margin-top:12px}
@@ -220,9 +221,10 @@ ol.jsteps{padding-left:20px;margin:12px 0 0}ol.jsteps li{margin:6px 0;font-size:
       <div id="art-thumb"></div>
       <div class="art-meta">
         <div id="art-name">Upload an SVG</div>
-        <div class="art-btns"><label class="btn small">Upload SVG<input type="file" id="art-file" accept=".svg,image/svg+xml" hidden></label><button class="btn small ghost" id="art-clear" hidden>Remove</button></div>
+        <div class="art-btns"><label class="btn small">Upload SVG<input type="file" id="art-file" accept=".svg,image/svg+xml" hidden></label><label class="btn small" id="art-dir-btn">Import folder<input type="file" id="art-dir" webkitdirectory directory multiple hidden></label><label class="btn small" id="art-multi-btn" hidden>Import SVGs<input type="file" id="art-multi" accept=".svg,image/svg+xml" multiple hidden></label><button class="btn small ghost" id="art-clear" hidden>Remove</button></div>
       </div>
     </div>
+    <div class="row lib-row"><select id="art-lib" style="width:auto;flex:1"></select><button class="linkbtn" id="art-lib-clear" hidden>Clear library</button></div>
     <div id="ai" hidden>
       <textarea id="ai-prompt" rows="2" placeholder="Describe it, e.g. &quot;a fox curled up asleep, bold woodcut style&quot;"></textarea>
       <div class="ai-row"><button class="btn small primary" id="ai-go">Draw it</button><span id="ai-status">Claude draws an SVG made for the laser.</span></div>

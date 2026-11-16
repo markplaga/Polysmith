@@ -108,7 +108,8 @@ body.noscroll{overflow:hidden}
 #art-thumb img{width:88%;height:88%;object-fit:contain}
 #art-thumb span{font-size:10.5px;color:#8a7d66;text-align:center;padding:4px}
 .art-meta{flex:1;min-width:0}#art-name{font-size:13px;color:var(--mute);margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.art-btns{display:flex;gap:6px}
+.art-btns{display:flex;gap:6px;flex-wrap:wrap}
+.lib-row{margin-top:12px}
 .btn.small{padding:7px 11px;font-size:13px;display:inline-block;cursor:pointer}
 .btn.ghost{background:none}
 #ai{margin-top:12px}
@@ -220,9 +221,10 @@ ol.jsteps{padding-left:20px;margin:12px 0 0}ol.jsteps li{margin:6px 0;font-size:
       <div id="art-thumb"></div>
       <div class="art-meta">
         <div id="art-name">Upload an SVG</div>
-        <div class="art-btns"><label class="btn small">Upload SVG<input type="file" id="art-file" accept=".svg,image/svg+xml" hidden></label><button class="btn small ghost" id="art-clear" hidden>Remove</button></div>
+        <div class="art-btns"><label class="btn small">Upload SVG<input type="file" id="art-file" accept=".svg,image/svg+xml" hidden></label><label class="btn small" id="art-dir-btn">Import folder<input type="file" id="art-dir" webkitdirectory directory multiple hidden></label><label class="btn small" id="art-multi-btn" hidden>Import SVGs<input type="file" id="art-multi" accept=".svg,image/svg+xml" multiple hidden></label><button class="btn small ghost" id="art-clear" hidden>Remove</button></div>
       </div>
     </div>
+    <div class="row lib-row"><select id="art-lib" style="width:auto;flex:1"></select><button class="linkbtn" id="art-lib-clear" hidden>Clear library</button></div>
     <div id="ai" hidden>
       <textarea id="ai-prompt" rows="2" placeholder="Describe it, e.g. &quot;a fox curled up asleep, bold woodcut style&quot;"></textarea>
       <div class="ai-row"><button class="btn small primary" id="ai-go">Draw it</button><span id="ai-status">Claude draws an SVG made for the laser.</span></div>
@@ -1311,6 +1313,7 @@ function parseArt(text, name) {
 }
 function setArt(text, name) {
   ART = parseArt(text, name);
+  if (!LIB.some(x => x.name === ART.name && x.svg === text)) libAdd(ART.name, text);
   try { localStorage.setItem('polysmith-art', JSON.stringify({ name: ART.name, svg: ART.svg })); } catch (e) { /* too big or blocked */ }
   renderArtUI(); compute();
   if (ART.texts) toast('Text elements were skipped. Convert text to outlines to include it.');
@@ -1322,6 +1325,7 @@ function renderArtUI() {
   $('#art-name').textContent = has ? `${ART.name} · ${ART.polys.length} paths` : 'Upload an SVG' + (sampleFn ? ' or describe one below' : '');
   $('#art-clear').hidden = !has;
   $$('.art-opt').forEach(el => { el.style.display = has ? '' : 'none'; });
+  renderLib();
 }
 function artRadius(res, mode) {
   const inf = res.info, t = st.t;
@@ -2051,6 +2055,48 @@ function icons() {
 }
 
 
+
+/* ---------- artwork library: import a folder (or many files) of SVGs, pick from a drop-down ---------- */
+let LIB = []; // [{name, svg}]
+const LIB_KEY = 'polysmith-artlib';
+function libSave() { try { localStorage.setItem(LIB_KEY, JSON.stringify(LIB)); return true; } catch (e) { return false; } }
+function libLoad() { try { LIB = JSON.parse(localStorage.getItem(LIB_KEY) || '[]').filter(x => x && x.name && x.svg); } catch (e) { LIB = []; } }
+function libAdd(name, svg, quiet) {
+  const i = LIB.findIndex(x => x.name === name);
+  if (i >= 0) LIB[i].svg = svg; else LIB.push({ name, svg });
+  LIB.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  if (!quiet) { const ok = libSave(); if (!ok) toast('Library is too big to remember on this device. It will last until you close the page.'); }
+}
+function renderLib() {
+  const sel = $('#art-lib'); if (!sel) return;
+  sel.innerHTML = `<option value="">${LIB.length ? `Library (${LIB.length})…` : 'Library is empty'}</option>` + LIB.map((x, i) => `<option value="${i}">${x.name.replace(/[<&>"]/g, '')}</option>`).join('');
+  sel.value = ART ? String(LIB.findIndex(x => x.name === ART.name)) : '';
+  if (sel.value === '-1') sel.value = '';
+  sel.disabled = !LIB.length; $('#art-lib-clear').hidden = !LIB.length;
+}
+async function importFiles(fileList) {
+  const files = [...fileList].filter(f => /\.svg$/i.test(f.name) && f.size < 4e6);
+  if (!files.length) { toast('No SVG files found there.', true); return; }
+  let ok = 0, bad = 0, firstName = null;
+  for (const f of files) {
+    try { const text = await f.text(); parseArt(text, f.name); const nm = (f.webkitRelativePath || f.name).replace(/^[^/]+\//, ''); libAdd(nm, text, true); ok++; if (!firstName) firstName = nm; } catch (e) { bad++; }
+  }
+  const saved = libSave(); renderLib();
+  toast(`Added ${ok} design${ok === 1 ? '' : 's'} to the library${bad ? ` · ${bad} couldn't be read` : ''}${saved ? '' : ' · too big to remember after you close the page'}`);
+  if (!ART && firstName) { const it = LIB.find(x => x.name === firstName); if (it) setArt(it.svg, it.name); }
+}
+function bindLib() {
+  libLoad();
+  const dirIn = $('#art-dir'), multiIn = $('#art-multi');
+  const canDir = 'webkitdirectory' in document.createElement('input') && !/iP(hone|ad|od)/.test(navigator.userAgent) && !(navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+  $('#art-dir-btn').hidden = !canDir; $('#art-multi-btn').hidden = canDir;
+  dirIn.addEventListener('change', e => { const f = [...(e.target.files || [])]; e.target.value = ''; if (f.length) importFiles(f); });
+  multiIn.addEventListener('change', e => { const f = [...(e.target.files || [])]; e.target.value = ''; if (f.length) importFiles(f); });
+  $('#art-lib').addEventListener('change', e => { const it = LIB[+e.target.value]; if (it) { try { setArt(it.svg, it.name); } catch (er) { toast(er.message || 'Could not read that SVG', true); } } });
+  $('#art-lib-clear').addEventListener('click', () => { LIB = []; libSave(); renderLib(); toast('Library cleared'); });
+  renderLib();
+}
+
 /* ---------- artwork UI + Claude drawing ---------- */
 let sampleFn = null, aiCtl = null;
 if (window.claude && window.claude.use) window.claude.use('sample').then(f => { sampleFn = f || null; $('#ai').hidden = !sampleFn; $('#ai-off').hidden = !!sampleFn; renderArtUI(); }).catch(() => {});
@@ -2187,7 +2233,7 @@ function bindCollapse() {
 /* boot */
 try { G = initGL(); } catch (e) { G = null; }
 if (!G) ctx = cv.getContext('2d');
-bind(); bindArt(); bindMax(); bindSolo(); bindStereo(); bindLamp(); bindFade(); bindCollapse(); syncInputs(); icons(); compute(); updPlay();
+bind(); bindLib(); bindArt(); bindMax(); bindSolo(); bindStereo(); bindLamp(); bindFade(); bindCollapse(); syncInputs(); icons(); compute(); updPlay();
 requestAnimationFrame(frame);
 })();
 </script>
