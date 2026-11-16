@@ -237,6 +237,7 @@ ol.jsteps{padding-left:20px;margin:12px 0 0}ol.jsteps li{margin:6px 0;font-size:
     <div class="zbar"><button id="zin" aria-label="Zoom in">+</button><span id="zlvl">1×</span><button id="zout" aria-label="Zoom out">−</button><button id="zfit" aria-label="Reset view">⤢</button><button id="zmax" aria-label="Full screen">⛶</button><button id="zst" aria-label="Stereo view" title="Stereo view">👓</button><button id="zlamp" aria-label="Lamp mode" title="Lamp mode: LED inside, shadows on the walls">💡</button></div>
     <div class="lamp-ctl" id="lamp-ctl" hidden>
       <div class="lrow"><span>💡 Light</span><input type="range" id="lamp-gain" min="0" max="300" step="5" value="100"><b id="lamp-pct">100%</b></div>
+      <div class="lrow"><span>Room size</span><input type="range" id="lamp-size" min="60" max="250" step="5" value="100"><small>smaller ↔ bigger</small></div>
       <div class="lrow"><span>X</span><input type="range" id="lamp-x" min="-60" max="60" step="1" value="0"><small>left ↔ right</small></div>
       <div class="lrow"><span>Y</span><input type="range" id="lamp-y" min="-60" max="60" step="1" value="0"><small>down ↔ up</small></div>
       <div class="lrow"><span>Z</span><input type="range" id="lamp-z" min="-60" max="60" step="1" value="0"><small>closer ↔ farther</small></div>
@@ -1643,11 +1644,11 @@ function clipRect2(ring, x0, x1, y0, y1) {
   }
   return pts;
 }
-let lampOff = [0, 0, 0]; // room offset as a fraction of its half-size: x right, y up, z farther
+let lampOff = [0, 0, 0], lampSize = 1; // room offset as a fraction of its half-size: x right, y up, z farther
 function buildLamp(polys) {
   const gl = G.gl;
   let Rm = 0; polys.forEach(p => { if (!p.art && !p.laser) p.pts.forEach(q => { Rm = Math.max(Rm, V.len(q)); }); });
-  const D = Rm * 2, eps = Rm * 0.04, LED = [255, 214, 160], AMB = 12;
+  const D = Rm * 2 * lampSize, eps = Rm * 0.04, LED = [255, 214, 160], AMB = 12;
   const off = [lampOff[0] * D, lampOff[1] * D, -lampOff[2] * D];
   const WALLS = [
     { o: [0, 0, -1], a: [1, 0, 0], b: [0, 1, 0] }, { o: [-1, 0, 0], a: [0, 0, 1], b: [0, 1, 0] },
@@ -1784,7 +1785,7 @@ function frame(ts) {
     updPlay(); sceneDirty = true;
   }
   if (!dragging && !ptrs.size && zoom <= 1.05 && ts - idle > 1800) yaw += 0.0035;
-  if (R && sceneDirty) { scene = buildScene(); sceneDirty = false; let r = 0; scene.forEach(p => p.pts.forEach(q => { r = Math.max(r, V.len(q)); })); if (lampOK()) r *= 2.35 * (1 + 0.5 * Math.max(Math.abs(lampOff[0]), Math.abs(lampOff[1]), Math.abs(lampOff[2]))); viewR = viewR ? viewR + (r - viewR) * (anim.playing ? 0.25 : 1) : r; if (G) upload(scene); }
+  if (R && sceneDirty) { scene = buildScene(); sceneDirty = false; let r = 0; scene.forEach(p => p.pts.forEach(q => { r = Math.max(r, V.len(q)); })); if (lampOK()) r *= 2.35 * Math.max(0.75, lampSize) * (1 + 0.5 * Math.max(Math.abs(lampOff[0]), Math.abs(lampOff[1]), Math.abs(lampOff[2]))); viewR = viewR ? viewR + (r - viewR) * (anim.playing ? 0.25 : 1) : r; if (G) upload(scene); }
   if (G) { if (scene.length) drawGL(W, H, viewR); }
   else { ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H); if (scene.length) draw(ctx, W, H, scene, viewR, { fill: 0.44 * zoom, px: panX, py: panY, lw: Math.min(1.6, 0.8 + zoom * 0.1) }); }
   requestAnimationFrame(frame);
@@ -1918,7 +1919,8 @@ function bindLamp() {
   });
   sl.addEventListener('input', () => { lampGain = sl.value / 100; sync(); });
   ['x', 'y', 'z'].forEach((a, i) => $('#lamp-' + a).addEventListener('input', e => { lampOff[i] = e.target.value / 100; sceneDirty = true; }));
-  $('#lamp-reset').addEventListener('click', () => { lampOff = [0, 0, 0]; ['x', 'y', 'z'].forEach(a => { $('#lamp-' + a).value = 0; }); viewR = 0; sceneDirty = true; });
+  $('#lamp-size').addEventListener('input', e => { lampSize = e.target.value / 100; viewR = 0; sceneDirty = true; });
+  $('#lamp-reset').addEventListener('click', () => { lampOff = [0, 0, 0]; lampSize = 1; ['x', 'y', 'z'].forEach(a => { $('#lamp-' + a).value = 0; }); $('#lamp-size').value = 100; viewR = 0; sceneDirty = true; });
   window.__lampSync = sync;
   if (!G) btn.hidden = true;
 }
