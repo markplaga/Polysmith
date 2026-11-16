@@ -223,19 +223,7 @@ function panels(p) {
     frames.forEach(F => xs.forEach(x => holes.push([F(x - sw, sl0), F(x - sw, sl1), F(x + sw, sl1), F(x + sw, sl0)])));
   }
   const freeAp = per > 0 ? ap - D - Math.max(t, 2.5) : ap - Math.max(2 * t, 4);
-  if (p.window !== 'none') {
-    if (freeAp < 3) warn.push({ lvl: 'warn', msg: 'Not enough room for a face window at this size.' });
-    else {
-      const wa = Math.max(1.5, freeAp * p.windowPct / 100);
-      if (p.window === 'circle') holes.push(circle([0, 0], wa - k / 2, 96));
-      else if (p.window === 'poly') holes.push(offset(ngon(n, wa), -k / 2));
-      else if (p.window === 'star') {
-        const pts = [], m = n === 3 ? 6 : n, ro = wa / Math.cos(Math.PI / n) * 0.98, ri = ro * (n === 4 ? 0.45 : 0.42);
-        for (let i = 0; i < 2 * m; i++) { const r = i % 2 ? ri : ro, th = -Math.PI / 2 - Math.PI / n + i * Math.PI / m; pts.push([r * Math.cos(th), r * Math.sin(th)]); }
-        holes.push(offset(pts, -k / 2));
-      }
-    }
-  }
+  holes.push(...windowHoles(p, n, freeAp, k, warn));
   const faceParts = [];
   const numH = Math.min(freeAp * 0.9, ap * 0.55);
   const facePart = num => {
@@ -321,6 +309,141 @@ function fingerGeom(S, L, t, o) {
   return out;
 }
 
+/* ---------- cut-out patterns ----------
+   All holes lie inside the safe polygon ngon(n, R) (edge 0 at the bottom) and are separated by at least
+   `bridge` mm of material. Deterministic, so every face gets the same pattern. */
+const PATTERNS = ['dots', 'honeycomb', 'diamonds', 'voronoi', 'starfield', 'sunburst', 'rings', 'moonstars', 'leaves'];
+function clipConvex(subject, clipper) { // clipper convex (any winding)
+  clipper = ccw(clipper);
+  let out = subject;
+  for (let i = 0; i < clipper.length && out.length; i++) {
+    const A = clipper[i], B = clipper[(i + 1) % clipper.length], inp = out; out = [];
+    const side = q => (B[0] - A[0]) * (q[1] - A[1]) - (B[1] - A[1]) * (q[0] - A[0]);
+    for (let j = 0; j < inp.length; j++) {
+      const P = inp[j], Q = inp[(j + 1) % inp.length], sp = side(P), sq = side(Q);
+      if (sp >= 0) out.push(P);
+      if ((sp >= 0) !== (sq >= 0)) { const tt = sp / (sp - sq); out.push([P[0] + (Q[0] - P[0]) * tt, P[1] + (Q[1] - P[1]) * tt]); }
+    }
+  }
+  return out;
+}
+function insideNgon(pt, n, R, r) { // circle of radius r fully inside ngon(n, R)?
+  for (let k = 0; k < n; k++) { const ph = -Math.PI / 2 + k * TAU / n; if (pt[0] * Math.cos(ph) + pt[1] * Math.sin(ph) + r > R) return false; }
+  return true;
+}
+function starPoly(c, ro, ri, m, rot) { const o = []; for (let i = 0; i < 2 * m; i++) { const r = i % 2 ? ri : ro, a = rot + i * Math.PI / m - Math.PI / 2; o.push([c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)]); } return o; }
+function patternHoles(n, R, type, density, bridge, seed) {
+  const S = ngon(n, R), holes = [], b = Math.max(0.6, bridge), kc = 2 + density, c = 2 * R / kc;
+  const rng = mulberry32(seed || 97), keepCell = (poly, shrink = true) => {
+    let q = clipConvex(ccw(poly), S); if (q.length < 3) return;
+    if (shrink) q = offset(q, -b / 2);
+    if (q.length >= 3 && Math.abs(area(q)) > b * b * 0.8) {
+      // reject inverted results of over-shrinking: every vertex must stay inside the clipped cell's hull
+      if (area(q) > 0) holes.push(q);
+    }
+  };
+  const ext = R / Math.cos(Math.PI / n) + c * 2;
+  if (type === 'dots') {
+    const r = (c - b) / 2; if (r < 0.5) return holes;
+    const dy = c * Math.sqrt(3) / 2;
+    for (let j = -Math.ceil(ext / dy); j <= Math.ceil(ext / dy); j++) for (let i = -Math.ceil(ext / c) - 1; i <= Math.ceil(ext / c) + 1; i++) {
+      const pt = [i * c + (j % 2 ? c / 2 : 0), j * dy];
+      if (insideNgon(pt, n, R, r)) holes.push(circle(pt, r, 28));
+    }
+  } else if (type === 'honeycomb') {
+    const rh = c / Math.sqrt(3), dy = c * Math.sqrt(3) / 2;
+    for (let j = -Math.ceil(ext / dy); j <= Math.ceil(ext / dy); j++) for (let i = -Math.ceil(ext / c) - 1; i <= Math.ceil(ext / c) + 1; i++) {
+      const ctr = [i * c + (j % 2 ? c / 2 : 0), j * dy], hx = [];
+      for (let k = 0; k < 6; k++) { const a = Math.PI / 6 + k * Math.PI / 3; hx.push([ctr[0] + rh * Math.cos(a), ctr[1] + rh * Math.sin(a)]); }
+      keepCell(hx);
+    }
+  } else if (type === 'diamonds') {
+    const h = c / 2;
+    for (let j = -Math.ceil(ext / h); j <= Math.ceil(ext / h); j++) for (let i = -Math.ceil(ext / c) - 1; i <= Math.ceil(ext / c) + 1; i++) {
+      const ctr = [i * c + (j % 2 ? c / 2 : 0), j * h];
+      keepCell([[ctr[0], ctr[1] - h], [ctr[0] + c / 2, ctr[1]], [ctr[0], ctr[1] + h], [ctr[0] - c / 2, ctr[1]]]);
+    }
+  } else if (type === 'voronoi') {
+    const N = Math.max(4, Math.round(kc * kc * 0.55)), pts = [], rc = R / Math.cos(Math.PI / n);
+    let guard = 0;
+    while (pts.length < N && guard++ < N * 60) { const q = [(rng() * 2 - 1) * rc, (rng() * 2 - 1) * rc]; if (insideNgon(q, n, R, 0) && pts.every(o => Math.hypot(o[0] - q[0], o[1] - q[1]) > c * 0.55)) pts.push(q); }
+    const big = rect(-ext * 2, -ext * 2, ext * 2, ext * 2);
+    pts.forEach((p0, i) => {
+      let cell = big;
+      pts.forEach((p1, j) => {
+        if (i === j) return;
+        const m = [(p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2], d = [p1[0] - p0[0], p1[1] - p0[1]];
+        // half-plane closer to p0: clipper edge with p0 on its left
+        const A = [m[0] - d[1] * 1e4, m[1] + d[0] * 1e4], B = [m[0] + d[1] * 1e4, m[1] - d[0] * 1e4];
+        cell = clipConvex(cell, [A, B, [B[0] - d[0] * 1e4, B[1] - d[1] * 1e4], [A[0] - d[0] * 1e4, A[1] - d[1] * 1e4]]);
+      });
+      keepCell(cell);
+    });
+  } else if (type === 'starfield') {
+    let guard = 0; const placed = [];
+    const target = Math.round(kc * kc * 0.45);
+    while (placed.length < target && guard++ < target * 120) {
+      const ro = c * (0.35 + rng() * 0.45), q = [(rng() * 2 - 1) * R * 1.2, (rng() * 2 - 1) * R * 1.2];
+      if (!insideNgon(q, n, R, ro)) continue;
+      if (placed.some(o => Math.hypot(o.q[0] - q[0], o.q[1] - q[1]) < o.r + ro + b)) continue;
+      placed.push({ q, r: ro }); holes.push(starPoly(q, ro, ro * 0.42, 5, rng() * TAU));
+    }
+  } else if (type === 'sunburst') {
+    const m = n * Math.max(2, Math.round(density / 2 + 1)), r0 = Math.max(c * 0.8, b * 3), big2 = ext * 2;
+    if (r0 - b > 1) holes.push(circle([0, 0], r0 - b, 48));
+    for (let i = 0; i < m; i++) {
+      const a1 = -Math.PI / 2 + i * TAU / m, a2 = a1 + TAU / m;
+      const w = [[r0 * Math.cos(a1), r0 * Math.sin(a1)], [big2 * Math.cos(a1), big2 * Math.sin(a1)], [big2 * Math.cos(a2), big2 * Math.sin(a2)], [r0 * Math.cos(a2), r0 * Math.sin(a2)]];
+      keepCell(w);
+    }
+  } else if (type === 'rings') {
+    const step = c * 0.9; if (step - b < 0.8) return holes;
+    for (let a0 = Math.max(step * 0.45, b); a0 + step <= R + 1e-6; a0 += step) {
+      const vin = ngon(n, a0), vout = ngon(n, a0 + step);
+      for (let k = 0; k < n; k++) { const j = (k + 1) % n; keepCell([vin[k], vin[j], vout[j], vout[k]]); }
+    }
+  } else if (type === 'moonstars') {
+    const rm = R * 0.5, cm = [-R * 0.12, R * 0.08];
+    if (insideNgon(cm, n, R, rm)) {
+      // crescent = disc(cm, rm) minus disc(c2, r2 + bridge)
+      const off = [rm * 0.45, rm * 0.25], c2 = [cm[0] + off[0], cm[1] + off[1]], r2 = rm * 0.85 + b, dd = Math.hypot(off[0], off[1]);
+      const aa = (rm * rm - r2 * r2 + dd * dd) / (2 * dd), hh = Math.sqrt(Math.max(0, rm * rm - aa * aa));
+      if (hh > 0) {
+        const ux = off[0] / dd, uy = off[1] / dd, mx = cm[0] + aa * ux, my = cm[1] + aa * uy;
+        const I1 = [mx - hh * uy, my + hh * ux], I2 = [mx + hh * uy, my - hh * ux];
+        const ang = (c, q) => Math.atan2(q[1] - c[1], q[0] - c[0]);
+        // outer arc on the big circle: from I1 the long way round (away from c2) to I2
+        let a1 = ang(cm, I1), a2 = ang(cm, I2); const away = Math.atan2(-uy, -ux);
+        const norm = x => { while (x < 0) x += TAU; while (x >= TAU) x -= TAU; return x; };
+        let span = norm(a2 - a1); const mid = a1 + span / 2;
+        const midOK = Math.cos(mid - away) > 0; const dir = midOK ? 1 : -1; if (!midOK) span = TAU - span;
+        const pts = [];
+        for (let i = 0; i <= 64; i++) { const a = a1 + dir * span * i / 64; pts.push([cm[0] + rm * Math.cos(a), cm[1] + rm * Math.sin(a)]); }
+        // inner arc on the cut circle: from I2 back to I1, the short way (inside the big disc)
+        let b2 = ang(c2, I2), b1 = ang(c2, I1); let sp2 = norm(b1 - b2); const toward = Math.atan2(-uy, -ux);
+        const mid2 = b2 + sp2 / 2, d2 = Math.cos(mid2 - toward) > 0 ? 1 : -1; if (d2 < 0) sp2 = TAU - sp2;
+        for (let i = 1; i < 48; i++) { const a = b2 + d2 * sp2 * i / 48; pts.push([c2[0] + r2 * Math.cos(a), c2[1] + r2 * Math.sin(a)]); }
+        holes.push(ccw(pts));
+      }
+      const spots = [[0.55, 0.45, 0.14], [0.42, -0.05, 0.09], [0.6, -0.42, 0.11], [-0.2, -0.55, 0.08], [0.1, 0.62, 0.07]];
+      spots.forEach(([x, y, r]) => { const q = [x * R, y * R], ro = r * R; if (insideNgon(q, n, R, ro) && Math.hypot(q[0] - cm[0], q[1] - cm[1]) > rm + ro + b) holes.push(starPoly(q, ro, ro * 0.42, 5, x * 3)); });
+    }
+  } else if (type === 'leaves') {
+    const m = n * 2, L0 = R * 0.95, wv = R * 0.22;
+    for (let i = 0; i < m; i++) {
+      const a = -Math.PI / 2 + i * TAU / m, d = [Math.cos(a), Math.sin(a)], nn = [-d[1], d[0]], pts = [];
+      const r0 = Math.max(b * 2.2, R * 0.12);
+      for (let j = 0; j <= 20; j++) { const tt = j / 20, x = r0 + (L0 - r0) * tt, y = wv * Math.sin(Math.PI * tt) * (0.85 - 0.35 * tt); pts.push(P2.add(P2.mul(d, x), P2.mul(nn, y))); }
+      for (let j = 19; j >= 1; j--) { const tt = j / 20, x = r0 + (L0 - r0) * tt, y = -wv * Math.sin(Math.PI * tt) * (0.85 - 0.35 * tt); pts.push(P2.add(P2.mul(d, x), P2.mul(nn, y))); }
+      const ok = pts.every(q => insideNgon(q, n, R, 0));
+      const leaf = ok ? pts : clipConvex(ccw(pts), S);
+      if (leaf.length > 4) holes.push(leaf);
+    }
+    holes.push(circle([0, 0], Math.max(b * 1.2, R * 0.12) - b * 0.6, 24));
+  }
+  return holes.filter(h => h && h.length >= 3);
+}
+
 function windowHoles(p, n, freeAp, k, warn) {
   const holes = [];
   if (p.window === 'none') return holes;
@@ -332,6 +455,10 @@ function windowHoles(p, n, freeAp, k, warn) {
     const pts = [], m = n === 3 ? 6 : n, ro = wa / Math.cos(Math.PI / n) * 0.98, ri = ro * (n === 4 ? 0.45 : 0.42);
     for (let i = 0; i < 2 * m; i++) { const r = i % 2 ? ri : ro, th = -Math.PI / 2 - Math.PI / n + i * Math.PI / m; pts.push([r * Math.cos(th), r * Math.sin(th)]); }
     holes.push(offset(pts, -k / 2));
+  } else if (PATTERNS.includes(p.window)) {
+    const ph = patternHoles(n, wa, p.window, p.patDensity || 4, p.bridge || 2.5, 1000 + n);
+    if (!ph.length) warn.push({ lvl: 'warn', msg: 'That pattern is too fine for this face size. Lower the density or the bridge width.' });
+    ph.forEach(h => holes.push(k > 0 ? offset(ccw(h), -k / 2) : ccw(h)));
   }
   return holes;
 }
@@ -607,6 +734,14 @@ function net(p) {
     } else cutSegs.push([pa, pb]);
   }));
   const cuts = chain(cutSegs);
+  if (p.window && p.window !== 'none') {
+    const ap = L / (2 * Math.tan(Math.PI / n)), loc = windowHoles(p, n, ap * 0.85, 0, warn);
+    pos.forEach(pp => {
+      let cx = 0, cy = 0; pp.forEach(q => { cx += q[0]; cy += q[1]; }); cx /= n; cy /= n;
+      const a = Math.atan2(pp[1][1] - pp[0][1], pp[1][0] - pp[0][0]), ca = Math.cos(a), sa = Math.sin(a);
+      loc.forEach(h => cuts.push({ pts: h.map(q => [cx + q[0] * ca - q[1] * sa, cy + q[0] * sa + q[1] * ca]), closed: true }));
+    });
+  }
   let scores = [];
   if (p.fold === 'perf') { scoreSegs.forEach(sg => cuts.push(...dashed(sg, Math.max(1.5, Math.min(6, L * 0.06)), Math.max(1, Math.min(2.5, L * 0.025))))); }
   else scores = scoreSegs.map(sg => ({ pts: sg, closed: false }));
@@ -706,5 +841,5 @@ function zip(files) {
   return new Blob(chunks, { type: 'application/zip' });
 }
 
-G.Poly = { PHI, TAU, V, P2, INFO, solid, panels, coupon, net, pack, sheetSVG, sheetDXF, zip, perim, offset, area, overlap, bbox, text, bracketFrame, ngon, fingerGeom, jigStation, ccw, stationSVG, stationDXF };
+G.Poly = { PHI, TAU, V, P2, INFO, solid, panels, coupon, net, pack, sheetSVG, sheetDXF, zip, perim, offset, area, overlap, bbox, text, bracketFrame, ngon, fingerGeom, jigStation, ccw, patternHoles, PATTERNS, stationSVG, stationDXF };
 })(typeof window !== 'undefined' ? window : globalThis);

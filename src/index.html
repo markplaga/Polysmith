@@ -57,7 +57,7 @@ details[open] summary::before{content:"－ "}
 body[data-mode=net] .only-net,body[data-mode=tab] .only-tab,body:not([data-mode=net]) .only-panel,body[data-mode=block] .only-glue,body[data-mode=none] .only-glue{display:block}
 .row.only-net,.row.only-tab,.row.only-panel,.row.only-fit,.row.only-finger{display:none}
 body[data-mode=tab] .row.only-fit,body[data-mode=finger] .row.only-fit,body[data-mode=finger] .row.only-finger{display:flex}
-body[data-mode=finger] details.brk{display:none}
+body[data-mode=finger] details.brk,body[data-mode=net] details.brk{display:none}
 body[data-mode=net] .row.only-net,body[data-mode=tab] .row.only-tab,body:not([data-mode=net]) .row.only-panel{display:flex}
 .view{position:relative;background:radial-gradient(120% 90% at 50% 30%,#2b3027 0%,#171915 70%);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:14px}
 #view{display:block;width:100%;height:min(56vh,480px);touch-action:none;cursor:grab}
@@ -184,10 +184,14 @@ ol.jsteps{padding-left:20px;margin:12px 0 0}ol.jsteps li{margin:6px 0;font-size:
     <div class="row"><label>Dice numbers<small>Engraved; opposite faces add to N+1</small></label><input type="checkbox" data-k="dice"></div>
   </section>
 
-  <section class="card only-panel">
-    <h2>4 · Details</h2>
-    <div class="row"><label>Face window</label><select data-k="window"><option value="none">None</option><option value="circle">Circle</option><option value="poly">Polygon</option><option value="star">Star</option></select></div>
-    <div class="row"><label>Window size <span id="wpct-out"></span></label><input type="range" min="10" max="100" step="1" data-k="windowPct"></div>
+  <section class="card">
+    <h2>4 · Cut-outs &amp; details</h2>
+    <div class="row"><label>Cut-out</label><select data-k="window"><option value="none">None</option>
+      <optgroup label="Windows"><option value="circle">Circle</option><option value="poly">Polygon</option><option value="star">Star</option></optgroup>
+      <optgroup label="Patterns"><option value="dots">Dots</option><option value="honeycomb">Honeycomb</option><option value="diamonds">Diamond lattice</option><option value="voronoi">Voronoi cells</option><option value="starfield">Starfield</option><option value="sunburst">Sunburst</option><option value="rings">Rings</option><option value="moonstars">Moon &amp; stars</option><option value="leaves">Flower</option></optgroup></select></div>
+    <div class="row win-opt"><label>Size <span id="wpct-out"></span><small>How much of the face it covers</small></label><input type="range" min="10" max="100" step="1" data-k="windowPct"></div>
+    <div class="row pat-opt"><label>Density <span id="pd-out"></span></label><input type="range" min="1" max="10" step="1" data-k="patDensity"></div>
+    <div class="row pat-opt"><label>Bridge width<small>Thinnest wood left between holes</small></label><div class="num"><input data-k="bridge" inputmode="decimal"><i data-unit></i></div></div>
     <details class="brk"><summary>Bracket tuning</summary>
       <div class="row"><label>Brackets per edge</label><div class="seg" data-seg="perEdge"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button></div></div>
       <div class="row"><label>Tab / block length<small>0 = auto (3× thickness)</small></label><div class="num"><input data-k="tabLen" inputmode="decimal"><i data-unit></i></div></div>

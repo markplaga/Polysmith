@@ -7,14 +7,14 @@ const IN = 25.4;
 /* ---------- state ---------- */
 const DEF = {
   solid: 'icosa', mode: 'tab', units: 'mm', measure: 'edge', size: 80, t: 3, kerf: 0.15, fit: 0.05,
-  perEdge: 1, tabLen: 0, protrude: 0, fingerW: 0, fingerStyle: 'flush', deckColor: '#3f9aa0', artMode: 'fill', artScale: 80, artRot: 0, artWhere: 'all', window: 'none', windowPct: 60, dice: false,
+  perEdge: 1, tabLen: 0, protrude: 0, patDensity: 4, bridge: 2.5, fingerW: 0, fingerStyle: 'flush', deckColor: '#3f9aa0', artMode: 'fill', artScale: 80, artRot: 0, artWhere: 'all', window: 'none', windowPct: 60, dice: false,
   tabH: 8, fold: 'score', copies: 1, sheetW: 600, sheetH: 400, margin: 5, spacing: 3, sheetPreset: '600x400',
 };
 let st = { ...DEF };
 try { const s = JSON.parse(localStorage.getItem('polysmith') || 'null'); if (s) st = { ...DEF, ...s }; } catch (e) { /* storage unavailable */ }
 const save = () => { try { localStorage.setItem('polysmith', JSON.stringify(st)); } catch (e) { /* ignore */ } };
 
-const LEN_KEYS = ['fingerW', 'size', 't', 'kerf', 'fit', 'tabLen', 'protrude', 'tabH', 'sheetW', 'sheetH', 'margin', 'spacing'];
+const LEN_KEYS = ['bridge', 'fingerW', 'size', 't', 'kerf', 'fit', 'tabLen', 'protrude', 'tabH', 'sheetW', 'sheetH', 'margin', 'spacing'];
 const fmtLen = (mm, key) => {
   if (st.units === 'in') { const v = mm / IN; return +(v.toFixed(['kerf', 'fit', 'protrude'].includes(key) ? 4 : 3)); }
   return +mm.toFixed(['kerf', 'fit'].includes(key) ? 3 : 2);
@@ -183,8 +183,8 @@ function compute() {
   const L = edgeFromSize();
   const base = { solid: st.solid, L, t: st.t, kerf: st.kerf, fit: st.fit };
   let res;
-  if (st.mode === 'net') res = P.net({ ...base, tabH: st.tabH, fold: st.fold, dice: st.dice, copies: st.copies });
-  else res = P.panels({ ...base, joint: st.mode, perEdge: st.perEdge, tabLen: st.tabLen, fingerW: st.fingerW, fingerStyle: st.fingerStyle, protrude: st.protrude, window: st.window, windowPct: st.windowPct, dice: st.dice });
+  if (st.mode === 'net') res = P.net({ ...base, tabH: st.tabH, fold: st.fold, dice: st.dice, copies: st.copies, window: st.window, windowPct: st.windowPct, patDensity: st.patDensity, bridge: st.bridge });
+  else res = P.panels({ ...base, joint: st.mode, perEdge: st.perEdge, tabLen: st.tabLen, fingerW: st.fingerW, fingerStyle: st.fingerStyle, protrude: st.protrude, window: st.window, windowPct: st.windowPct, patDensity: st.patDensity, bridge: st.bridge, dice: st.dice });
   applyArt(res, P.solid(st.solid), L);
   let jig = null;
   if (st.mode === 'finger' && st.fingerStyle === 'bevel' && res.info.finger) jig = P.jigStation(P.solid(st.solid), L, st.t, res.info.finger, { kerf: st.kerf, fit: st.fit, bedW: st.sheetW, bedH: st.sheetH });
@@ -211,6 +211,10 @@ function syncInputs() {
   $$('.solid-btn').forEach(b => b.classList.toggle('on', b.dataset.solid === st.solid));
   document.body.dataset.mode = st.mode;
   $('#wpct-out').textContent = st.windowPct + '%';
+  const isPat = P.PATTERNS.includes(st.window);
+  $$('.pat-opt').forEach(el => { el.style.display = isPat ? '' : 'none'; });
+  $$('.win-opt').forEach(el => { el.style.display = st.window === 'none' ? 'none' : ''; });
+  $('#pd-out').textContent = st.patDensity;
 }
 let tmr = null;
 function onInput(el, immediate) {
