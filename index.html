@@ -122,6 +122,10 @@ ol.jsteps{padding-left:20px;margin:12px 0 0}ol.jsteps li{margin:6px 0;font-size:
 .vbar.dim{opacity:.45}
 .zbar button.on{background:var(--wood);color:#2a1d0f}
 .stereo-pill{position:absolute;left:50%;transform:translateX(-50%);bottom:64px;background:rgba(23,25,21,.85)}
+.lamp-ctl{position:absolute;left:12px;top:76px;display:flex;flex-direction:column;gap:2px;background:rgba(23,25,21,.85);border:1px solid var(--line);border-radius:12px;padding:7px 12px;font-size:12px;color:var(--mute)}
+.lamp-ctl .lrow{display:flex;align-items:center;gap:8px}.lamp-ctl .lrow>span{min-width:52px}.lamp-ctl small{font-size:10.5px;min-width:86px}
+.lamp-ctl input{width:120px}.lamp-ctl .linkbtn{align-self:flex-start;font-size:11.5px;margin-top:2px}.lamp-ctl b{font:500 11px 'IBM Plex Mono',monospace;color:var(--ink);min-width:34px}
+.view.lamp{background:radial-gradient(120% 90% at 50% 40%,#151612 0%,#070806 75%)}
 .stereo-div{display:none;position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(239,230,214,.18);pointer-events:none}
 .view.stereo .stereo-div{display:block}
 .jleg{position:absolute;left:12px;top:76px;display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--mute);background:rgba(23,25,21,.7);padding:5px 10px;border-radius:999px;max-width:calc(100% - 90px)}
@@ -230,7 +234,14 @@ ol.jsteps{padding-left:20px;margin:12px 0 0}ol.jsteps li{margin:6px 0;font-size:
     <div class="hint"><span class="hd">drag to spin · scroll to zoom · shift-drag to pan · double-click to reset</span><span class="hm">drag to spin · pinch to zoom · two fingers to pan</span></div>
     <div class="seg solo" id="solo"><button data-s="all">Whole</button><button data-s="face">One face</button><button data-s="bracket">Bracket</button><button data-s="jig">Jig</button></div>
     <div id="jig-legend" class="jleg" hidden><span><i style="background:#ff8000"></i>Tip cuts</span><span><i style="background:#a000ff"></i>Notch cuts</span><label class="dcol">Deck colour <input type="color" id="deck-color"></label></div>
-    <div class="zbar"><button id="zin" aria-label="Zoom in">+</button><span id="zlvl">1×</span><button id="zout" aria-label="Zoom out">−</button><button id="zfit" aria-label="Reset view">⤢</button><button id="zmax" aria-label="Full screen">⛶</button><button id="zst" aria-label="Stereo view" title="Stereo view">👓</button></div>
+    <div class="zbar"><button id="zin" aria-label="Zoom in">+</button><span id="zlvl">1×</span><button id="zout" aria-label="Zoom out">−</button><button id="zfit" aria-label="Reset view">⤢</button><button id="zmax" aria-label="Full screen">⛶</button><button id="zst" aria-label="Stereo view" title="Stereo view">👓</button><button id="zlamp" aria-label="Lamp mode" title="Lamp mode: LED inside, shadows on the walls">💡</button></div>
+    <div class="lamp-ctl" id="lamp-ctl" hidden>
+      <div class="lrow"><span>💡 Light</span><input type="range" id="lamp-gain" min="0" max="300" step="5" value="100"><b id="lamp-pct">100%</b></div>
+      <div class="lrow"><span>X</span><input type="range" id="lamp-x" min="-60" max="60" step="1" value="0"><small>left ↔ right</small></div>
+      <div class="lrow"><span>Y</span><input type="range" id="lamp-y" min="-60" max="60" step="1" value="0"><small>down ↔ up</small></div>
+      <div class="lrow"><span>Z</span><input type="range" id="lamp-z" min="-60" max="60" step="1" value="0"><small>closer ↔ farther</small></div>
+      <button class="linkbtn" id="lamp-reset">Reset walls</button>
+    </div>
     <div class="seg stereo-pill" id="stereo" hidden><button data-m="cross">Cross-eyed</button><button data-m="parallel">Parallel</button><button data-m="off">Off</button></div>
     <div class="stereo-div"></div>
     <div class="vbar"><button id="play">▶</button><span class="only-net" style="display:none">Fold</span><span class="lbl-x">Explode</span><input type="range" id="slider" min="0" max="1000" value="0"></div>
@@ -1441,7 +1452,8 @@ function buildScene() {
     return out;
   }
   const inf = R.res.info, t = st.t, sc = inf.ap / inf.a, ex = anim.t * L * 0.7;
-  const holes = (R.res.parts[0] && R.res.parts[0].cuts.slice(1).map(c => c.pts)) || [];
+  const fp = R.res.parts.find(p => /^Face/.test(p.name) && !/\(art\)/.test(p.name)) || R.res.parts[0];
+  const holes = (fp && fp.cuts.slice(1).filter(c => c.closed !== false && c.pts.length >= 3).map(c => c.pts)) || [];
   const p0 = P.ngon(S.sides, 10)[0], th0 = Math.atan2(p0[1], p0[0]);
   const outline2 = inf.finger ? inf.finger.poly : P.ngon(S.sides, inf.ap);
   S.faces.forEach((f, fi) => {
@@ -1504,6 +1516,7 @@ function updSolo() {
   $('#solo [data-s=jig]').hidden = !hasJig;
   $$('#solo button').forEach(b => b.classList.toggle('on', b.dataset.s === solo));
   $('.vbar').classList.toggle('dim', solo !== 'all');
+  if (window.__lampSync) window.__lampSync();
 }
 
 /* ---------- 3D jig scene (bed frame x right, y back, z up -> render x, z, -y) ---------- */
@@ -1581,13 +1594,103 @@ function initGL() {
   const sh = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw gl.getShaderInfoLog(o); return o; };
   const prog = (vs, fs) => { const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p); return p; };
   const VS_HEAD = 'uniform mat3 uR;uniform float uScl,uDp,uW,uH,uPx,uPy,uZ;vec4 proj(vec3 p){vec3 v=uR*p;float f=uDp/(uDp-v.z);return vec4((v.x*uScl*f+uPx)/(uW*0.5),(v.y*uScl*f-uPy)/(uH*0.5),-v.z/uZ,1.0);}';
-  const pF = prog('attribute vec3 aP,aN,aC,aB;' + VS_HEAD + 'varying vec3 vC,vB;varying float vS;void main(){gl_Position=proj(aP);vec3 n=normalize(uR*aN);vS=0.42+0.62*abs(dot(n,normalize(vec3(-0.45,0.65,0.6))));vC=aC;vB=aB;}',
-    'precision mediump float;varying vec3 vC,vB;varying float vS;void main(){vec3 c=gl_FrontFacing?vC:vB;gl_FragColor=vec4(min(c*vS/255.0,vec3(1.0)),1.0);}');
+  const pF = prog('attribute vec3 aP,aN,aC,aB;' + VS_HEAD + 'varying vec3 vC,vB,vW;varying float vS;void main(){gl_Position=proj(aP);vec3 n=normalize(uR*aN);vS=0.42+0.62*abs(dot(n,normalize(vec3(-0.45,0.65,0.6))));vC=aC;vB=aB;vW=aP;}',
+    'precision mediump float;uniform float uUnlit,uGain,uBox;varying vec3 vC,vB,vW;varying float vS;void main(){if(uBox>0.0&&(abs(vW.x)>uBox||abs(vW.y)>uBox||abs(vW.z)>uBox))discard;vec3 c=gl_FrontFacing?vC:vB;float s=uUnlit>0.5?uGain:vS;gl_FragColor=vec4(min(c*s/255.0,vec3(1.0)),1.0);}');
   const pL = prog('attribute vec3 aP;' + VS_HEAD + 'void main(){vec4 q=proj(aP);q.z-=0.0015;gl_Position=q;}',
     'precision mediump float;uniform vec4 uCol;void main(){gl_FragColor=uCol;}');
   return { gl, pF, pL, fb: gl.createBuffer(), lb: gl.createBuffer(), ab: gl.createBuffer(), tb: gl.createBuffer(), nb: gl.createBuffer(), nF: 0, nL: 0, nA: 0, nT: 0, nN: 0 };
 }
+
+/* ---------- lamp mode: LED at the centre, walls catch the light that escapes ---------- */
+let lamp = false, lampGain = 1;
+function triangulate(v, holes) {
+  let nx = 0, ny = 0, nz = 0;
+  for (let i = 0; i < v.length; i++) { const a = v[i], b = v[(i + 1) % v.length]; nx += (a[1] - b[1]) * (a[2] + b[2]); ny += (a[2] - b[2]) * (a[0] + b[0]); nz += (a[0] - b[0]) * (a[1] + b[1]); }
+  const nl = Math.hypot(nx, ny, nz) || 1, n = [nx / nl, ny / nl, nz / nl];
+  const all = [v, ...(holes || [])], flat3 = [].concat(...all);
+  let tri;
+  if (v.length === 3 && !(holes && holes.length)) tri = [0, 1, 2];
+  else if (v.length === 4 && !(holes && holes.length)) tri = [0, 1, 2, 0, 2, 3];
+  else {
+    const ax = Math.abs(n[0]) > 0.6 ? [0, 0, 1] : [1, 0, 0], u = V.norm(V.cross(n, ax)), w = V.cross(n, u);
+    const flat2 = [], holeIdx = []; let c = 0;
+    all.forEach((ring, ri) => { if (ri) holeIdx.push(c); ring.forEach(q => { flat2.push(V.dot(q, u), V.dot(q, w)); c++; }); });
+    tri = window.earcut(flat2, holeIdx.length ? holeIdx : null, 2);
+  }
+  return { n, pts: tri.map(i => flat3[i]) };
+}
+const lampOK = () => lamp && st.mode !== 'net' && solo === 'all';
+function clipRing(ring, nOut, eps) {
+  const out = [];
+  for (let i = 0; i < ring.length; i++) {
+    const A = ring[i], B = ring[(i + 1) % ring.length], da = V.dot(A, nOut) - eps, db = V.dot(B, nOut) - eps;
+    if (da >= 0) out.push(A);
+    if ((da >= 0) !== (db >= 0)) { const tt = da / (da - db); out.push(V.add(A, V.mul(V.sub(B, A), tt))); }
+  }
+  return out;
+}
+function clipRect2(ring, x0, x1, y0, y1) {
+  let pts = ring;
+  const edges = [[0, x0, 1], [0, x1, -1], [1, y0, 1], [1, y1, -1]];
+  for (const [ax, v, sg] of edges) {
+    const out = [];
+    for (let i = 0; i < pts.length; i++) {
+      const A = pts[i], B = pts[(i + 1) % pts.length], da = (A[ax] - v) * sg, db = (B[ax] - v) * sg;
+      if (da >= 0) out.push(A);
+      if ((da >= 0) !== (db >= 0)) { const tt = da / (da - db); out.push([A[0] + (B[0] - A[0]) * tt, A[1] + (B[1] - A[1]) * tt]); }
+    }
+    pts = out; if (pts.length < 3) return [];
+  }
+  return pts;
+}
+let lampOff = [0, 0, 0]; // room offset as a fraction of its half-size: x right, y up, z farther
+function buildLamp(polys) {
+  const gl = G.gl;
+  let Rm = 0; polys.forEach(p => { if (!p.art && !p.laser) p.pts.forEach(q => { Rm = Math.max(Rm, V.len(q)); }); });
+  const D = Rm * 2, eps = Rm * 0.04, LED = [255, 214, 160], AMB = 12;
+  const off = [lampOff[0] * D, lampOff[1] * D, -lampOff[2] * D];
+  const WALLS = [
+    { o: [0, 0, -1], a: [1, 0, 0], b: [0, 1, 0] }, { o: [-1, 0, 0], a: [0, 0, 1], b: [0, 1, 0] },
+    { o: [1, 0, 0], a: [0, 0, -1], b: [0, 1, 0] }, { o: [0, 1, 0], a: [1, 0, 0], b: [0, 0, -1] },
+  ];
+  const push = (arr, pts, n, col) => pts.forEach(q => arr.push(q[0], q[1], q[2], n[0], n[1], n[2], col[0], col[1], col[2], col[0], col[1], col[2]));
+  G.lamp = { D, walls: [] };
+  WALLS.forEach(Wd => {
+    const nIn = V.mul(Wd.o, -1), Wv = [], Sv = [], G2 = 36;
+    const dp = Math.max(D + V.dot(off, Wd.o), Rm * 1.15), oa = V.dot(off, Wd.a), ob = V.dot(off, Wd.b);
+    const at3 = (x, y, dd) => V.add(V.mul(Wd.o, dd), V.add(V.mul(Wd.a, x), V.mul(Wd.b, y)));
+    const P = (i, j) => at3(oa - D + 2 * D * i / G2, ob - D + 2 * D * j / G2, dp);
+    const colAt = q => { const L2 = V.len(q), I = Math.min(1.6, D * D * dp / (L2 * L2 * L2)); return LED.map(c => AMB + c * I); };
+    for (let i = 0; i < G2; i++) for (let j = 0; j < G2; j++) {
+      const q = [P(i, j), P(i + 1, j), P(i + 1, j + 1), P(i, j + 1)], cs = q.map(colAt);
+      [[0, 1, 2], [0, 2, 3]].forEach(tr => tr.forEach(k => { const v = q[k], c = cs[k]; Wv.push(v[0], v[1], v[2], nIn[0], nIn[1], nIn[2], c[0], c[1], c[2], c[0], c[1], c[2]); }));
+    }
+    const Dm = dp - Rm * 0.002, x0 = oa - D, x1 = oa + D, y0 = ob - D, y1 = ob + D;
+    const to2 = r => r.map(q => { const k = Dm / V.dot(q, Wd.o); return [V.dot(q, Wd.a) * k, V.dot(q, Wd.b) * k]; });
+    polys.forEach(p => {
+      if (p.art || p.laser) return;
+      const ring = clipRing(p.pts, Wd.o, eps); if (ring.length < 3) return;
+      const outer = clipRect2(to2(ring), x0, x1, y0, y1); if (outer.length < 3) return;
+      const holes = (p.holes || []).map(h => clipRing(h, Wd.o, eps)).filter(h => h.length >= 3).map(h => clipRect2(to2(h), x0, x1, y0, y1)).filter(h => h.length >= 3);
+      const flat = [], hi = []; let c = 0;
+      [outer, ...holes].forEach((r, ri) => { if (ri) hi.push(c); r.forEach(q => { flat.push(q[0], q[1]); c++; }); });
+      const all = [].concat(outer, ...holes), idx = window.earcut(flat, hi.length ? hi : null, 2);
+      push(Sv, idx.map(i => at3(all[i][0], all[i][1], Dm)), nIn, [AMB, AMB, AMB - 1]);
+    });
+    const wb = gl.createBuffer(), sb = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, wb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Wv), gl.DYNAMIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, sb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Sv), gl.DYNAMIC_DRAW);
+    G.lamp.walls.push({ nIn, c: at3(oa, ob, dp), wb, wn: Wv.length / 12, sb, sn: Sv.length / 12 });
+  });
+  // the LED: a small glowing octahedron
+  const r = Rm * 0.05, Lv = [], vx = [[r, 0, 0], [-r, 0, 0], [0, r, 0], [0, -r, 0], [0, 0, r], [0, 0, -r]];
+  [[0, 2, 4], [2, 1, 4], [1, 3, 4], [3, 0, 4], [2, 0, 5], [1, 2, 5], [3, 1, 5], [0, 3, 5]].forEach(f => push(Lv, f.map(i => vx[i]), [0, 0, 1], [255, 246, 220]));
+  G.lamp.lb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, G.lamp.lb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Lv), gl.DYNAMIC_DRAW); G.lamp.ln = Lv.length / 12;
+}
+function freeLamp() { if (!G || !G.lamp) return; const gl = G.gl; G.lamp.walls.forEach(w => { gl.deleteBuffer(w.wb); gl.deleteBuffer(w.sb); }); gl.deleteBuffer(G.lamp.lb); G.lamp = null; }
+
 function upload(polys) {
+  freeLamp(); if (lampOK()) buildLamp(polys);
   const gl = G.gl, F = [], Ln = [], An = [], Lt = [], Ln2 = [];
   polys.forEach(p => {
     if (p.laser) { const v = p.pts; (p.laser === 'tip' ? Lt : Ln2).push(v[0][0], v[0][1], v[0][2], v[1][0], v[1][1], v[1][2]); return; }
@@ -1632,14 +1735,26 @@ function drawView(vx, vw, W, H, rad) {
   gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
   const scl = (solo === 'jig' ? Math.min(W * 0.47, H * 0.75) : Math.min(W, H) * 0.44) * (stereo === 'off' ? 1 : 0.8) * zoom / rad, R3 = rotMat();
   const setU = p => { gl.useProgram(p); const u = n => gl.getUniformLocation(p, n);
-    gl.uniformMatrix3fv(u('uR'), false, R3); gl.uniform1f(u('uScl'), scl); gl.uniform1f(u('uDp'), rad * 5); gl.uniform1f(u('uW'), W); gl.uniform1f(u('uH'), H);
+    gl.uniformMatrix3fv(u('uR'), false, R3); gl.uniform1f(u('uScl'), scl); gl.uniform1f(u('uDp'), rad * (lampOK() ? 2.4 : 5)); gl.uniform1f(u('uW'), W); gl.uniform1f(u('uH'), H);
     gl.uniform1f(u('uPx'), panX); gl.uniform1f(u('uPy'), panY); gl.uniform1f(u('uZ'), rad * 1.6); };
   setU(G.pF);
-  gl.bindBuffer(gl.ARRAY_BUFFER, G.fb);
   const at = (p, n, size, off, stride) => { const l = gl.getAttribLocation(p, n); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, size, gl.FLOAT, false, stride * 4, off * 4); return l; };
-  const ls = [at(G.pF, 'aP', 3, 0, 12), at(G.pF, 'aN', 3, 3, 12), at(G.pF, 'aC', 3, 6, 12), at(G.pF, 'aB', 3, 9, 12)];
-  gl.disable(gl.BLEND); gl.drawArrays(gl.TRIANGLES, 0, G.nF);
-  ls.forEach(l => gl.disableVertexAttribArray(l));
+  const uF = n => gl.getUniformLocation(G.pF, n);
+  const drawF = (buf, cnt) => { if (!cnt) return; gl.bindBuffer(gl.ARRAY_BUFFER, buf); const ls = [at(G.pF, 'aP', 3, 0, 12), at(G.pF, 'aN', 3, 3, 12), at(G.pF, 'aC', 3, 6, 12), at(G.pF, 'aB', 3, 9, 12)]; gl.drawArrays(gl.TRIANGLES, 0, cnt); ls.forEach(l => gl.disableVertexAttribArray(l)); };
+  gl.disable(gl.BLEND);
+  if (G.lamp) {
+    const rm = rotM(), cam = [-panX / scl, panY / scl, rad * (lampOK() ? 2.4 : 5)];
+    gl.uniform1f(uF('uUnlit'), 1);
+    G.lamp.walls.forEach(w => {
+      const nr = rm(w.nIn), cr = rm(w.c);
+      if (V.dot(nr, V.sub(cam, cr)) <= 0) return; // wall faces away: it's between us and the model
+      gl.uniform1f(uF('uBox'), 0); gl.uniform1f(uF('uGain'), lampGain); drawF(w.wb, w.wn);
+      gl.depthFunc(gl.ALWAYS); gl.depthMask(false); gl.uniform1f(uF('uGain'), 1); drawF(w.sb, w.sn); gl.depthMask(true); gl.depthFunc(gl.LEQUAL);
+    });
+    gl.uniform1f(uF('uBox'), 0); gl.uniform1f(uF('uGain'), Math.max(1, lampGain)); drawF(G.lamp.lb, G.lamp.ln);
+  }
+  gl.uniform1f(uF('uUnlit'), 0); gl.uniform1f(uF('uBox'), 0); gl.uniform1f(uF('uGain'), 1);
+  drawF(G.fb, G.nF);
   setU(G.pL);
   gl.bindBuffer(gl.ARRAY_BUFFER, G.lb);
   const lp = at(G.pL, 'aP', 3, 0, 3);
@@ -1668,7 +1783,7 @@ function frame(ts) {
     updPlay(); sceneDirty = true;
   }
   if (!dragging && !ptrs.size && zoom <= 1.05 && ts - idle > 1800) yaw += 0.0035;
-  if (R && sceneDirty) { scene = buildScene(); sceneDirty = false; let r = 0; scene.forEach(p => p.pts.forEach(q => { r = Math.max(r, V.len(q)); })); viewR = viewR ? viewR + (r - viewR) * (anim.playing ? 0.25 : 1) : r; if (G) upload(scene); }
+  if (R && sceneDirty) { scene = buildScene(); sceneDirty = false; let r = 0; scene.forEach(p => p.pts.forEach(q => { r = Math.max(r, V.len(q)); })); if (lampOK()) r *= 2.35 * (1 + 0.5 * Math.max(Math.abs(lampOff[0]), Math.abs(lampOff[1]), Math.abs(lampOff[2]))); viewR = viewR ? viewR + (r - viewR) * (anim.playing ? 0.25 : 1) : r; if (G) upload(scene); }
   if (G) { if (scene.length) drawGL(W, H, viewR); }
   else { ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H); if (scene.length) draw(ctx, W, H, scene, viewR, { fill: 0.44 * zoom, px: panX, py: panY, lw: Math.min(1.6, 0.8 + zoom * 0.1) }); }
   requestAnimationFrame(frame);
@@ -1791,6 +1906,21 @@ function bindStereo() {
   pill.addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (b) set(b.dataset.m); });
   if (!G) btn.hidden = true;
 }
+function bindLamp() {
+  const btn = $('#zlamp'), ctl = $('#lamp-ctl'), view = $('.view'), sl = $('#lamp-gain');
+  const sync = () => { const on = lampOK(); btn.classList.toggle('on', lamp); ctl.hidden = !on; view.classList.toggle('lamp', on); $('#lamp-pct').textContent = Math.round(lampGain * 100) + '%'; };
+  btn.addEventListener('click', () => {
+    lamp = !lamp;
+    if (lamp) { if (st.mode === 'net') toast('Lamp mode works with panel builds, not folding nets.'); solo = 'all'; updSolo(); anim.t = 0; anim.playing = false; updPlay(); resetView(); yaw = 0.28; pitch = -0.12; idle = performance.now() + 4000; }
+    else { yaw = 0.6; pitch = -0.35; }
+    viewR = 0; sceneDirty = true; sync();
+  });
+  sl.addEventListener('input', () => { lampGain = sl.value / 100; sync(); });
+  ['x', 'y', 'z'].forEach((a, i) => $('#lamp-' + a).addEventListener('input', e => { lampOff[i] = e.target.value / 100; sceneDirty = true; }));
+  $('#lamp-reset').addEventListener('click', () => { lampOff = [0, 0, 0]; ['x', 'y', 'z'].forEach(a => { $('#lamp-' + a).value = 0; }); viewR = 0; sceneDirty = true; });
+  window.__lampSync = sync;
+  if (!G) btn.hidden = true;
+}
 function bindMax() {
   const view = $('.view'), btn = $('#zmax');
   const set = on => {
@@ -1809,7 +1939,7 @@ function bindMax() {
 /* boot */
 try { G = initGL(); } catch (e) { G = null; }
 if (!G) ctx = cv.getContext('2d');
-bind(); bindArt(); bindMax(); bindSolo(); bindStereo(); syncInputs(); icons(); compute(); updPlay();
+bind(); bindArt(); bindMax(); bindSolo(); bindStereo(); bindLamp(); syncInputs(); icons(); compute(); updPlay();
 requestAnimationFrame(frame);
 })();
 </script>
