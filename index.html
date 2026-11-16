@@ -1191,6 +1191,7 @@ const u = (mm, dp) => st.units === 'in' ? (mm / IN).toFixed(dp == null ? 3 : dp)
 
 
 /* ---------- artwork: SVG -> polylines ---------- */
+const TAU2 = Math.PI * 2;
 let ART = null; // {name, svg, polys:[{pts,closed}]} normalised to the unit circle, y-up
 function rdp(pts, eps) {
   if (pts.length < 3) return pts;
@@ -1284,9 +1285,19 @@ function parseArt(text, name) {
     for (let i = polys.length - 1; i >= 0; i--) if (polys[i].white) { const w = bb([polys[i]]); if (w.w >= B.w * 0.9 && w.h >= B.h * 0.9) polys.splice(i, 1); }
   }
   if (!polys.length) throw new Error(texts ? 'This SVG only has text. Convert text to paths (outlines) in your design app, then upload again.' : 'No drawable shapes found in that SVG.');
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  polys.forEach(pl => pl.forEach(q => { x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]); }));
-  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2; let r = 0;
+  // centre = centroid of the convex hull of everything drawn (a triangle of dots centres on the triangle's centre)
+  const all = []; polys.forEach(pl => pl.forEach(q => all.push(q)));
+  all.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]), lo = [], up = [];
+  for (const q of all) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+  for (let i = all.length - 1; i >= 0; i--) { const q = all[i]; while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
+  const hull = lo.slice(0, -1).concat(up.slice(0, -1));
+  let A = 0, hx = 0, hy = 0;
+  for (let i = 0; i < hull.length; i++) { const p0 = hull[i], p1 = hull[(i + 1) % hull.length], w = p0[0] * p1[1] - p1[0] * p0[1]; A += w; hx += (p0[0] + p1[0]) * w; hy += (p0[1] + p1[1]) * w; }
+  let cx, cy;
+  if (Math.abs(A) > 1e-9) { cx = hx / (3 * A); cy = hy / (3 * A); }
+  else { let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; all.forEach(q => { x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]); }); cx = (x0 + x1) / 2; cy = (y0 + y1) / 2; }
+  let r = 0;
   polys.forEach(pl => pl.forEach(q => { r = Math.max(r, Math.hypot(q[0] - cx, q[1] - cy)); }));
   r = r || 1;
   const out = polys.map(pl => {
@@ -1323,7 +1334,11 @@ let _S = null, _L = 0; const R0 = () => _S, R0L = () => _L;
 function applyArt(res, S, L) {
   _S = S; _L = L; res.artFace = null;
   if (!ART) return;
-  const mode = st.artMode, rad = Math.max(1, artRadius(res, mode)) * st.artScale / 100, rot = st.artRot * Math.PI / 180;
+  const mode = st.artMode, rot = st.artRot * Math.PI / 180, nS = S.sides;
+  // polygon norm: how far the (rotated) art reaches toward each edge of the face; 1 = touches the inscribed circle
+  let pn = 1e-6; const ca0 = Math.cos(rot), sa0 = Math.sin(rot);
+  ART.polys.forEach(pl => pl.pts.forEach(p => { const x = p[0] * ca0 - p[1] * sa0, y = p[0] * sa0 + p[1] * ca0; for (let k = 0; k < nS; k++) { const ph = -Math.PI / 2 + k * TAU2 / nS; pn = Math.max(pn, x * Math.cos(ph) + y * Math.sin(ph)); } }));
+  const rad = Math.max(1, artRadius(res, mode)) * st.artScale / 100 / pn;
   const tf = (pts, c, r, a) => { const ca = Math.cos(a), sa = Math.sin(a); return pts.map(p => [c[0] + (p[0] * ca - p[1] * sa) * r, c[1] + (p[0] * sa + p[1] * ca) * r]); };
   const emit = (part, c, r, a) => {
     part.fills = part.fills || [];
