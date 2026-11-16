@@ -1799,8 +1799,8 @@ function initGL() {
   if (!gl || !window.earcut) return null;
   const sh = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw gl.getShaderInfoLog(o); return o; };
   const prog = (vs, fs) => { const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p); return p; };
-  const VS_HEAD = 'uniform mat3 uR;uniform float uScl,uDp,uW,uH,uPx,uPy,uZ;vec4 proj(vec3 p){vec3 v=uR*p;float f=uDp/(uDp-v.z);return vec4((v.x*uScl*f+uPx)/(uW*0.5),(v.y*uScl*f-uPy)/(uH*0.5),-v.z/uZ,1.0);}';
-  const pF = prog('attribute vec3 aP,aN,aC,aB;' + VS_HEAD + 'varying vec3 vC,vB,vW;varying float vS;void main(){gl_Position=proj(aP);vec3 n=normalize(uR*aN);vS=0.42+0.62*abs(dot(n,normalize(vec3(-0.45,0.65,0.6))));vC=aC;vB=aB;vW=aP;}',
+  const VS_HEAD = 'uniform mat3 uR,uM;uniform vec3 uT;uniform float uScl,uDp,uW,uH,uPx,uPy,uZ;vec4 proj(vec3 p){vec3 v=uR*(uM*p)+uT;float f=uDp/(uDp-v.z);return vec4((v.x*uScl*f+uPx)/(uW*0.5),(v.y*uScl*f-uPy)/(uH*0.5),-v.z/uZ,1.0);}';
+  const pF = prog('attribute vec3 aP,aN,aC,aB;' + VS_HEAD + 'varying vec3 vC,vB,vW;varying float vS;void main(){gl_Position=proj(aP);vec3 n=normalize(uR*(uM*aN));vS=0.42+0.62*abs(dot(n,normalize(vec3(-0.45,0.65,0.6))));vC=aC;vB=aB;vW=aP;}',
     'precision mediump float;uniform float uUnlit,uGain,uBox;varying vec3 vC,vB,vW;varying float vS;void main(){if(uBox>0.0&&(abs(vW.x)>uBox||abs(vW.y)>uBox||abs(vW.z)>uBox))discard;vec3 c=gl_FrontFacing?vC:vB;float s=uUnlit>0.5?uGain:vS;gl_FragColor=vec4(min(c*s/255.0,vec3(1.0)),1.0);}');
   const pL = prog('attribute vec3 aP;' + VS_HEAD + 'void main(){vec4 q=proj(aP);q.z-=0.0015;gl_Position=q;}',
     'precision mediump float;uniform vec4 uCol;void main(){gl_FragColor=uCol;}');
@@ -1854,29 +1854,32 @@ function buildLamp(polys) {
   const gl = G.gl;
   let Rm = 0; polys.forEach(p => { if (!p.art && !p.laser) p.pts.forEach(q => { Rm = Math.max(Rm, V.len(q)); }); });
   const hx = /^#?([0-9a-f]{6})$/i.exec(lampColor) || [0, 'ffd6a0'], LED = [0, 2, 4].map(i => parseInt(hx[1].slice(i, i + 2), 16));
-  const D = Rm * 2 * lampSize, eps = Rm * 0.04, AMB = 12;
+  const D = Rm * 2 * lampSize, eps = Rm * 0.04, AMB = 12, asp = G.lampAspect || 1.6;
+  const E = asp >= 1 ? [D * asp, D, D] : [D, D / asp, D]; // room half-sizes: shaped like the window
   const off = [lampOff[0] * D, lampOff[1] * D, -lampOff[2] * D];
+  const Mr = rotM(); // the model turns; the room stays put
+  polys = polys.filter(p => !p.art && !p.laser).map(p => ({ pts: p.pts.map(Mr), holes: p.holes && p.holes.map(h => h.map(Mr)) }));
+  const ext = v => Math.abs(v[0]) * E[0] + Math.abs(v[1]) * E[1] + Math.abs(v[2]) * E[2];
   const WALLS = [
     { o: [0, 0, -1], a: [1, 0, 0], b: [0, 1, 0] }, { o: [-1, 0, 0], a: [0, 0, 1], b: [0, 1, 0] },
     { o: [1, 0, 0], a: [0, 0, -1], b: [0, 1, 0] }, { o: [0, 1, 0], a: [1, 0, 0], b: [0, 0, -1] },
-    { o: [0, -1, 0], a: [1, 0, 0], b: [0, 0, 1] }, { o: [0, 0, 1], a: [-1, 0, 0], b: [0, 1, 0] },
+    { o: [0, -1, 0], a: [1, 0, 0], b: [0, 0, 1] },
   ];
   const push = (arr, pts, n, col) => pts.forEach(q => arr.push(q[0], q[1], q[2], n[0], n[1], n[2], col[0], col[1], col[2], col[0], col[1], col[2]));
-  G.lamp = { D, walls: [] };
+  G.lamp = { D, E, off, walls: [], key: lampKey() };
   WALLS.forEach(Wd => {
     const nIn = V.mul(Wd.o, -1), Wv = [], Sv = [], G2 = 36;
-    const dp = Math.max(D + V.dot(off, Wd.o), Rm * 1.15), oa = V.dot(off, Wd.a), ob = V.dot(off, Wd.b);
+    const ea = ext(Wd.a), eb = ext(Wd.b), dp = Math.max(ext(Wd.o) + V.dot(off, Wd.o), Rm * 1.15), oa = V.dot(off, Wd.a), ob = V.dot(off, Wd.b);
     const at3 = (x, y, dd) => V.add(V.mul(Wd.o, dd), V.add(V.mul(Wd.a, x), V.mul(Wd.b, y)));
-    const P = (i, j) => at3(oa - D + 2 * D * i / G2, ob - D + 2 * D * j / G2, dp);
+    const P = (i, j) => at3(oa - ea + 2 * ea * i / G2, ob - eb + 2 * eb * j / G2, dp);
     const colAt = q => { const L2 = V.len(q), I = Math.min(1.6, D * D * dp / (L2 * L2 * L2)); return LED.map(c => AMB + c * I); };
     for (let i = 0; i < G2; i++) for (let j = 0; j < G2; j++) {
       const q = [P(i, j), P(i + 1, j), P(i + 1, j + 1), P(i, j + 1)], cs = q.map(colAt);
       [[0, 1, 2], [0, 2, 3]].forEach(tr => tr.forEach(k => { const v = q[k], c = cs[k]; Wv.push(v[0], v[1], v[2], nIn[0], nIn[1], nIn[2], c[0], c[1], c[2], c[0], c[1], c[2]); }));
     }
-    const Dm = dp - Rm * 0.002, x0 = oa - D, x1 = oa + D, y0 = ob - D, y1 = ob + D;
+    const Dm = dp - Rm * 0.002, x0 = oa - ea, x1 = oa + ea, y0 = ob - eb, y1 = ob + eb;
     const to2 = r => r.map(q => { const k = Dm / V.dot(q, Wd.o); return [V.dot(q, Wd.a) * k, V.dot(q, Wd.b) * k]; });
     polys.forEach(p => {
-      if (p.art || p.laser) return;
       const ring = clipRing(p.pts, Wd.o, eps); if (ring.length < 3) return;
       const outer = clipRect2(to2(ring), x0, x1, y0, y1); if (outer.length < 3) return;
       const holes = (p.holes || []).map(h => clipRing(h, Wd.o, eps)).filter(h => h.length >= 3).map(h => clipRect2(to2(h), x0, x1, y0, y1)).filter(h => h.length >= 3);
@@ -1890,12 +1893,19 @@ function buildLamp(polys) {
     gl.bindBuffer(gl.ARRAY_BUFFER, sb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Sv), gl.DYNAMIC_DRAW);
     G.lamp.walls.push({ nIn, c: at3(oa, ob, dp), wb, wn: Wv.length / 12, sb, sn: Sv.length / 12 });
   });
+  // faint room edges so the box reads as a room: the back rectangle plus the four depth edges
+  { const ex = E[0], ey = E[1], ez = E[2], O = off, C = (x, y, z) => [O[0] + x * ex, O[1] + y * ey, O[2] + z * ez], Ev = [];
+    const seg = (a, b) => Ev.push(...a, ...b);
+    [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(([x, y], i, arr) => { const [x2, y2] = arr[(i + 1) % 4]; seg(C(x, y, -1), C(x2, y2, -1)); seg(C(x, y, -1), C(x, y, 1)); });
+    G.lamp.eb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, G.lamp.eb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Ev), gl.DYNAMIC_DRAW); G.lamp.en = Ev.length / 3; }
   // the LED: a small glowing octahedron
   const r = Rm * 0.05, Lv = [], vx = [[r, 0, 0], [-r, 0, 0], [0, r, 0], [0, -r, 0], [0, 0, r], [0, 0, -r]];
   [[0, 2, 4], [2, 1, 4], [1, 3, 4], [3, 0, 4], [2, 0, 5], [1, 2, 5], [3, 1, 5], [0, 3, 5]].forEach(f => push(Lv, f.map(i => vx[i]), [0, 0, 1], LED.map(c => Math.min(255, c * 0.6 + 110))));
   G.lamp.lb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, G.lamp.lb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Lv), gl.DYNAMIC_DRAW); G.lamp.ln = Lv.length / 12;
 }
-function freeLamp() { if (!G || !G.lamp) return; const gl = G.gl; G.lamp.walls.forEach(w => { gl.deleteBuffer(w.wb); gl.deleteBuffer(w.sb); }); gl.deleteBuffer(G.lamp.lb); G.lamp = null; }
+function lampKey() { return yaw.toFixed(3) + ',' + pitch.toFixed(3) + ',' + (G.lampAspect || 0).toFixed(3); }
+let eyeYaw = 0, lastLampBuild = 0;
+function freeLamp() { if (!G || !G.lamp) return; const gl = G.gl; G.lamp.walls.forEach(w => { gl.deleteBuffer(w.wb); gl.deleteBuffer(w.sb); }); gl.deleteBuffer(G.lamp.lb); if (G.lamp.eb) gl.deleteBuffer(G.lamp.eb); G.lamp = null; }
 
 function upload(polys) {
   freeLamp(); if (lampOK()) buildLamp(polys);
@@ -1935,32 +1945,55 @@ function drawGL(W, H, rad) {
   const y0 = yaw, leftEye = y0 + STEREO_ANGLE / 2, rightEye = y0 - STEREO_ANGLE / 2;
   const order = stereo === 'cross' ? [rightEye, leftEye] : [leftEye, rightEye];
   const half = Math.floor(cv.width / 2);
+  if (G.lamp) {
+    const eyes = stereo === 'cross' ? [-STEREO_ANGLE / 2, STEREO_ANGLE / 2] : [STEREO_ANGLE / 2, -STEREO_ANGLE / 2];
+    eyes.forEach((e, i) => { eyeYaw = e; gl.clear(gl.DEPTH_BUFFER_BIT); drawView(i * half, half, W / 2, H, rad); });
+    eyeYaw = 0; return;
+  }
   order.forEach((yv, i) => { yaw = yv; gl.clear(gl.DEPTH_BUFFER_BIT); drawView(i * half, half, W / 2, H, rad); });
   yaw = y0;
 }
 function drawView(vx, vw, W, H, rad) {
   const gl = G.gl; gl.viewport(vx, 0, vw, cv.height);
   gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
-  const scl = (solo === 'jig' ? Math.min(W * 0.47, H * 0.75) : Math.min(W, H) * 0.44) * (stereo === 'off' ? 1 : 0.8) * zoom / rad, R3 = rotMat();
+  const I3 = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]), L = G.lamp;
+  let scl, Dp, Zr, R3, M3, T3;
+  if (L) { // fixed room filling the view; camera at the open front; the model turns inside it
+    const Ry = L.E[1], Rz = L.E[2]; Dp = Rz + 1.6 * Ry; const fFront = Dp / (Dp - Rz);
+    scl = H / (2 * Ry * fFront) * zoom; Zr = Rz * 1.25 + V.len(L.off);
+    const ce = Math.cos(eyeYaw), se = Math.sin(eyeYaw);
+    R3 = new Float32Array([ce, 0, -se, 0, 1, 0, se, 0, ce]); M3 = rotMat(); T3 = V.mul(L.off, -1);
+  } else {
+    scl = (solo === 'jig' ? Math.min(W * 0.47, H * 0.75) : Math.min(W, H) * 0.44) * (stereo === 'off' ? 1 : 0.8) * zoom / rad;
+    Dp = rad * 5; Zr = rad * 1.6; R3 = rotMat(); M3 = I3; T3 = [0, 0, 0];
+  }
+  let curM = M3;
   const setU = p => { gl.useProgram(p); const u = n => gl.getUniformLocation(p, n);
-    gl.uniformMatrix3fv(u('uR'), false, R3); gl.uniform1f(u('uScl'), scl); gl.uniform1f(u('uDp'), rad * (lampOK() ? 2.4 : 5)); gl.uniform1f(u('uW'), W); gl.uniform1f(u('uH'), H);
-    gl.uniform1f(u('uPx'), panX); gl.uniform1f(u('uPy'), panY); gl.uniform1f(u('uZ'), rad * 1.6); };
+    gl.uniformMatrix3fv(u('uR'), false, R3); gl.uniformMatrix3fv(u('uM'), false, curM); gl.uniform3f(u('uT'), T3[0], T3[1], T3[2]);
+    gl.uniform1f(u('uScl'), scl); gl.uniform1f(u('uDp'), Dp); gl.uniform1f(u('uW'), W); gl.uniform1f(u('uH'), H);
+    gl.uniform1f(u('uPx'), panX); gl.uniform1f(u('uPy'), panY); gl.uniform1f(u('uZ'), Zr); };
   setU(G.pF);
   const at = (p, n, size, off, stride) => { const l = gl.getAttribLocation(p, n); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, size, gl.FLOAT, false, stride * 4, off * 4); return l; };
   const uF = n => gl.getUniformLocation(G.pF, n);
   const drawF = (buf, cnt) => { if (!cnt) return; gl.bindBuffer(gl.ARRAY_BUFFER, buf); const ls = [at(G.pF, 'aP', 3, 0, 12), at(G.pF, 'aN', 3, 3, 12), at(G.pF, 'aC', 3, 6, 12), at(G.pF, 'aB', 3, 9, 12)]; gl.drawArrays(gl.TRIANGLES, 0, cnt); ls.forEach(l => gl.disableVertexAttribArray(l)); };
   gl.disable(gl.BLEND);
-  if (G.lamp) {
-    const rm = rotM(), cam = [-panX / scl, panY / scl, rad * (lampOK() ? 2.4 : 5)];
+  if (L) {
+    gl.uniformMatrix3fv(uF('uM'), false, I3); // the room does not turn
     gl.uniform1f(uF('uUnlit'), 1);
-    G.lamp.walls.forEach(w => {
-      const nr = rm(w.nIn), cr = rm(w.c);
-      if (V.dot(nr, V.sub(cam, cr)) <= 0) return; // wall faces away: it's between us and the model
+    L.walls.forEach(w => {
       gl.uniform1f(uF('uBox'), 0); gl.uniform1f(uF('uGain'), lampGain); drawF(w.wb, w.wn);
       gl.depthFunc(gl.ALWAYS); gl.depthMask(false); gl.uniform1f(uF('uGain'), 1); drawF(w.sb, w.sn); gl.depthMask(true); gl.depthFunc(gl.LEQUAL);
     });
     gl.uniform1f(uF('uBox'), 0); gl.uniform1f(uF('uGain'), Math.max(1, lampGain)); drawF(G.lamp.lb, G.lamp.ln);
   }
+  if (L && L.en) {
+    curM = I3; setU(G.pL); gl.bindBuffer(gl.ARRAY_BUFFER, L.eb); const ep = at(G.pL, 'aP', 3, 0, 3);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    const lc = (/^#?([0-9a-f]{6})$/i.exec(lampColor) || [0, 'ffd6a0'])[1], rgb = [0, 2, 4].map(i => parseInt(lc.slice(i, i + 2), 16) / 255);
+    gl.uniform4f(gl.getUniformLocation(G.pL, 'uCol'), rgb[0], rgb[1], rgb[2], 0.28);
+    gl.disable(gl.DEPTH_TEST); gl.drawArrays(gl.LINES, 0, L.en); gl.enable(gl.DEPTH_TEST); gl.disableVertexAttribArray(ep); gl.disable(gl.BLEND); curM = M3; setU(G.pF);
+  }
+  gl.uniformMatrix3fv(uF('uM'), false, M3);
   gl.uniform1f(uF('uUnlit'), 0); gl.uniform1f(uF('uBox'), 0); gl.uniform1f(uF('uGain'), 1);
   drawF(G.fb, G.nF);
   setU(G.pL);
@@ -1992,7 +2025,13 @@ function frame(ts) {
   }
   if (!dragging && !ptrs.size && zoom <= 1.05 && ts - idle > 1800) yaw += 0.0035;
   if (R && sceneDirty) { scene = buildScene(); sceneDirty = false; let r = 0; scene.forEach(p => p.pts.forEach(q => { r = Math.max(r, V.len(q)); })); if (lampOK()) r *= 2.35 * Math.max(0.75, lampSize) * (1 + 0.5 * Math.max(Math.abs(lampOff[0]), Math.abs(lampOff[1]), Math.abs(lampOff[2]))); viewR = viewR ? viewR + (r - viewR) * (anim.playing ? 0.25 : 1) : r; if (G) upload(scene); }
-  if (G) { if (scene.length) drawGL(W, H, viewR); }
+  if (G) {
+    const asp = (stereo === 'off' ? W : W / 2) / Math.max(1, H);
+    if (lampOK() && Math.abs((G.lampAspect || 0) - asp) > 0.01) { G.lampAspect = asp; if (G.lamp) { freeLamp(); buildLamp(scene); } }
+    G.lampAspect = asp;
+    if (G.lamp && G.lamp.key !== lampKey() && ts - lastLampBuild > 45) { lastLampBuild = ts; freeLamp(); buildLamp(scene); }
+    if (scene.length) drawGL(W, H, viewR);
+  }
   else { ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H); if (scene.length) draw(ctx, W, H, scene, viewR, { fill: 0.44 * zoom, px: panX, py: panY, lw: Math.min(1.6, 0.8 + zoom * 0.1) }); }
   requestAnimationFrame(frame);
 }
