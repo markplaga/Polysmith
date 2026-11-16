@@ -1253,7 +1253,13 @@ function parseArt(text, name) {
     const SP = 0.6; // sampling step in the 600px frame
     els.forEach(el => {
       if (el.closest('defs,clipPath,mask,symbol,marker,pattern')) return;
-      const cs = getComputedStyle(el); if (cs.display === 'none' || cs.visibility === 'hidden') return;
+      const cs = getComputedStyle(el); if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) return;
+      // skip shapes that draw nothing (no fill and no stroke), e.g. invisible frames
+      const noFill = cs.fill === 'none' || +cs.fillOpacity === 0 || /rgba\([^)]*,\s*0\)$/.test(cs.fill);
+      const noStroke = cs.stroke === 'none' || parseFloat(cs.strokeWidth) === 0 || +cs.strokeOpacity === 0;
+      if (noFill && noStroke) return;
+      const rgb = (cs.fill.match(/\d+(\.\d+)?/g) || []).map(Number), white = !noFill && noStroke && rgb.length >= 3 && rgb[0] > 235 && rgb[1] > 235 && rgb[2] > 235;
+      const start = polys.length;
       let len = 0; try { len = el.getTotalLength(); } catch (e) { return; }
       if (!(len > 0)) return;
       const m = el.getCTM(); if (!m) return;
@@ -1267,8 +1273,16 @@ function parseArt(text, name) {
         cur.push(pt); prev = pt;
       }
       flush();
+      for (let i = start; i < polys.length; i++) polys[i].white = white;
     });
   } finally { host.remove(); }
+  // drop white background panels: white shapes as big as the whole drawing
+  const bb = arr => { let a = Infinity, b2 = Infinity, c = -Infinity, d = -Infinity; arr.forEach(pl => pl.forEach(q => { a = Math.min(a, q[0]); b2 = Math.min(b2, q[1]); c = Math.max(c, q[0]); d = Math.max(d, q[1]); })); return { x0: a, y0: b2, x1: c, y1: d, w: c - a, h: d - b2 }; };
+  const ink = polys.filter(pl => !pl.white);
+  if (ink.length) {
+    const B = bb(ink);
+    for (let i = polys.length - 1; i >= 0; i--) if (polys[i].white) { const w = bb([polys[i]]); if (w.w >= B.w * 0.9 && w.h >= B.h * 0.9) polys.splice(i, 1); }
+  }
   if (!polys.length) throw new Error(texts ? 'This SVG only has text. Convert text to paths (outlines) in your design app, then upload again.' : 'No drawable shapes found in that SVG.');
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   polys.forEach(pl => pl.forEach(q => { x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]); }));
