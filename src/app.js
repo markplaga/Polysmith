@@ -7,7 +7,7 @@ const IN = 25.4;
 /* ---------- state ---------- */
 const DEF = {
   solid: 'icosa', mode: 'tab', units: 'mm', measure: 'edge', size: 80, t: 3, kerf: 0.15, fit: 0.05,
-  perEdge: 1, tabLen: 0, protrude: 0, patDensity: 4, bridge: 2.5, fingerW: 0, fingerStyle: 'flush', deckColor: '#3f9aa0', artMode: 'fill', artScale: 80, artRot: 0, artWhere: 'all', window: 'none', windowPct: 60, dice: false,
+  perEdge: 1, tabLen: 0, protrude: 0, patDensity: 4, bridge: 2.5, fingerW: 0, fingerStyle: 'flush', deckColor: '#3f9aa0', material: 'ply', matColor: '#e0473c', artMode: 'fill', artScale: 80, artRot: 0, artWhere: 'all', window: 'none', windowPct: 60, dice: false,
   tabH: 8, fold: 'score', copies: 1, sheetW: 600, sheetH: 400, margin: 5, spacing: 3, sheetPreset: '600x400',
 };
 let st = { ...DEF };
@@ -246,13 +246,14 @@ function syncInputs() {
   $$('.pat-opt').forEach(el => { el.style.display = isPat ? '' : 'none'; });
   $$('.win-opt').forEach(el => { el.style.display = st.window === 'none' ? 'none' : ''; });
   $('#pd-out').textContent = st.patDensity;
+  $$('.mat-col').forEach(el => { el.style.display = st.material === 'color' ? '' : 'none'; });
 }
 let tmr = null;
 function onInput(el, immediate) {
   const k = el.dataset.k;
   let v;
   if (el.type === 'checkbox') v = el.checked;
-  else if (el.tagName === 'SELECT') v = el.value;
+  else if (el.tagName === 'SELECT' || el.type === 'color') v = el.value;
   else { v = parseFloat(el.value); if (!isFinite(v)) return; if (LEN_KEYS.includes(k) && st.units === 'in') v *= IN; }
   if (['size', 't', 'sheetW', 'sheetH'].includes(k) && v <= 0) return;
   if (k === 'measure') {
@@ -266,6 +267,8 @@ function onInput(el, immediate) {
     if (v !== 'custom') { const [w, h] = v.split('x').map(Number); st.sheetW = w; st.sheetH = h; }
     syncInputs(); compute(); save(); return;
   }
+  if (k === 'material') { st.material = v; st.kerf = (MATS[v] || MATS.ply).kerf; syncInputs(); compute(); save(); return; }
+  if (k === 'matColor') { st.matColor = v; sceneDirty = true; save(); return; }
   if (k === 'sheetW' || k === 'sheetH') st.sheetPreset = 'custom';
   st[k] = v;
   if (k === 'windowPct') $('#wpct-out').textContent = v + '%';
@@ -466,21 +469,40 @@ function rotAbout(pa, pb, th) {
   return x => { const v = V.sub(x, o); return V.add(V.add(V.add(V.mul(v, c), V.mul(V.cross(k, v), s)), V.mul(k, V.dot(k, v) * (1 - c))), o); };
 }
 const WOOD = [222, 184, 135], WOOD_IN = [176, 140, 98], GRAIN = [150, 108, 66], BRK = [235, 120, 80], PAPER = [246, 240, 228], PAPER_IN = [214, 196, 168], TAB = [196, 168, 130];
+/* materials: colours for 3D, opacity (a), light transmission for lamp mode (tr), typical kerf */
+const MATS = {
+  ply: { face: [222, 184, 135], inn: [176, 140, 98], edge: [150, 108, 66], a: 1, tr: 0, kerf: 0.15 },
+  mdf: { face: [176, 138, 100], inn: [160, 124, 90], edge: [96, 70, 48], a: 1, tr: 0, kerf: 0.15 },
+  bamboo: { face: [222, 194, 132], inn: [204, 172, 112], edge: [172, 132, 78], a: 1, tr: 0, kerf: 0.15 },
+  walnut: { face: [128, 88, 60], inn: [112, 76, 52], edge: [84, 56, 38], a: 1, tr: 0, kerf: 0.15 },
+  clear: { face: [205, 228, 236], inn: [190, 215, 225], edge: [170, 215, 232], a: 0.22, tr: 0.85, kerf: 0.1, tint: [1, 1, 1] },
+  frost: { face: [236, 240, 242], inn: [226, 232, 235], edge: [214, 226, 232], a: 0.8, tr: 0.45, kerf: 0.1, tint: [1, 1, 1] },
+  color: { a: 0.55, tr: 0.6, kerf: 0.1, tinted: true },
+  black: { face: [38, 38, 42], inn: [30, 30, 34], edge: [20, 20, 22], a: 1, tr: 0, kerf: 0.1 },
+  card: { face: [246, 240, 228], inn: [222, 210, 188], edge: [200, 190, 170], a: 1, tr: 0.12, kerf: 0.05, tint: [1, 0.95, 0.85] },
+};
+const hexRGB = h => { const m = /^#?([0-9a-f]{6})$/i.exec(h || '') || [0, 'e0473c']; return [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16)); };
+function matCols() {
+  const M = MATS[st.material] || MATS.ply;
+  if (!M.tinted) return { ...M, tint: M.tint || [0, 0, 0], opaqueWood: M.a === 1 && M.tr === 0 && st.material !== 'black' };
+  const c = hexRGB(st.matColor);
+  return { ...M, face: c, inn: c.map(v => Math.round(v * 0.88)), edge: c.map(v => Math.min(255, Math.round(v * 1.08 + 12))), tint: c.map(v => v / 255) };
+}
 function buildScene() {
   if (solo === 'jig' && R.jig) return buildJigScene();
-  const S = R.S, L = R.L, out = [];
+  const S = R.S, L = R.L, out = [], MC = matCols();
   if (st.mode === 'net') {
     const inf = R.res.info; if (!inf.lay) return out;
     const n = S.sides, pos = inf.pos, lay = inf.lay, th = (Math.PI - S.dihedral) * anim.t, M = [];
     const getM = f => { if (M[f]) return M[f]; const pr = lay.parent[f]; if (!pr) return (M[f] = x => x); const pm = getM(pr.f), pp = pos[pr.f], Rr = rotAbout(pp[pr.i], pp[(pr.i + 1) % n], th); return (M[f] = x => pm(Rr(x))); };
-    pos.forEach((pp, f) => out.push({ pts: pp.map(q => getM(f)([q[0], q[1], 0])), col: PAPER, back: PAPER_IN, line: 1 }));
+    pos.forEach((pp, f) => out.push({ pts: pp.map(q => getM(f)([q[0], q[1], 0])), col: MC.face, back: MC.inn, line: 1, mat: true }));
     if (ART && R.res.artFace && R.res.artFace.net) R.res.artFace.net.forEach(({ f, c, a }) => {
       const r = R.res.artFace.r, ca = Math.cos(a), sa = Math.sin(a), m = getM(f);
       ART.polys.forEach(pl => out.push({ art: true, closed: pl.closed, pts: pl.pts.map(p => m([c[0] + (p[0] * ca - p[1] * sa) * r, c[1] + (p[0] * sa + p[1] * ca) * r, 0.05])) }));
     });
     inf.tabs.forEach(tb => {
       const pp = pos[tb.f], Rr = rotAbout(pp[tb.i], pp[(tb.i + 1) % n], Math.min(1, anim.t * 1.15) * (Math.PI - S.dihedral) + 0.0), m = getM(tb.f);
-      out.push({ pts: tb.poly.map(q => m(Rr([q[0], q[1], 0]))), col: TAB, back: TAB, line: 1 });
+      out.push({ pts: tb.poly.map(q => m(Rr([q[0], q[1], 0]))), col: MC.inn, back: MC.inn, line: 1, mat: true });
     });
     let c = [0, 0, 0], cnt = 0; out.forEach(p => p.pts.forEach(q => { c = V.add(c, q); cnt++; })); c = V.mul(c, 1 / cnt);
     // flat net lies in the "floor" plane: rotate so z becomes y-up-ish
@@ -499,28 +521,28 @@ function buildScene() {
     const map2 = (q, depth) => { const r = Math.hypot(q[0], q[1]), a = Math.atan2(q[1], q[0]) - th0; return V.add(V.add(c, off), V.add(V.add(V.mul(U, r * Math.cos(a)), V.mul(Wd, r * Math.sin(a))), V.mul(f.n, -depth))); };
     const outer = (inf.finger && inf.finger.outer ? inf.finger.outer : outline2).map(q => map2(q, 0)), inner = (inf.finger && inf.finger.inner ? inf.finger.inner : outline2).map(q => map2(q, t));
     const h0 = holes.map(h => h.map(q => map2(q, 0))), h1 = holes.map(h => h.map(q => map2(q, t)));
-    out.push({ pts: outer, holes: h0, col: WOOD, back: WOOD_IN, line: 1, face: true });
-    out.push({ pts: inner.slice().reverse(), holes: h1.map(h => h.slice().reverse()), col: WOOD_IN, back: WOOD_IN, edge: false });
+    out.push({ pts: outer, holes: h0, col: MC.face, back: MC.inn, line: 1, face: true, mat: true });
+    out.push({ pts: inner.slice().reverse(), holes: h1.map(h => h.slice().reverse()), col: MC.inn, back: MC.inn, edge: false, mat: true });
     if (ART && R.res.artFace && (st.artWhere !== 'one' || fi === 0)) {
       const r = R.res.artFace.r, a = R.res.artFace.rot, ca = Math.cos(a), sa = Math.sin(a);
       ART.polys.forEach(pl => out.push({ art: true, closed: pl.closed, pts: pl.pts.map(p => map2([(p[0] * ca - p[1] * sa) * r, (p[0] * sa + p[1] * ca) * r], -0.04)) }));
     }
-    h0.forEach((h, hi) => { for (let i = 0; i < h.length; i++) { const j = (i + 1) % h.length; out.push({ pts: [h[j], h[i], h1[hi][i], h1[hi][j]], col: GRAIN, back: GRAIN, zb: -L * 0.06 }); } });
-    for (let i = 0; i < outer.length; i++) { const j = (i + 1) % outer.length; out.push({ pts: [outer[i], outer[j], inner[j], inner[i]], col: GRAIN, back: GRAIN, zb: -L * 0.06 }); }
+    h0.forEach((h, hi) => { for (let i = 0; i < h.length; i++) { const j = (i + 1) % h.length; out.push({ pts: [h[j], h[i], h1[hi][i], h1[hi][j]], col: MC.edge, back: MC.edge, zb: -L * 0.06, mat: true }); } });
+    for (let i = 0; i < outer.length; i++) { const j = (i + 1) % outer.length; out.push({ pts: [outer[i], outer[j], inner[j], inner[i]], col: MC.edge, back: MC.edge, zb: -L * 0.06, mat: true }); }
     for (let i = g0; i < out.length; i++) out[i].grp = 'f' + fi;
   });
   if (inf.br && inf.per > 0) {
     const fr = P.bracketFrame(S, L, inf.xs);
-    const BRK_SIDE = [196, 92, 58];
+    const BRK_SIDE = [196, 92, 58], bF = MC.opaqueWood ? BRK : MC.face, bS = MC.opaqueWood ? BRK_SIDE : MC.edge, bm = !MC.opaqueWood;
     let bi = 0;
     fr.forEach(arr => arr.forEach(F3 => {
       const g0 = out.length;
       const z = V.norm(V.cross(F3.x, F3.y));
       const at = (q, h2) => V.add(V.add(F3.M, V.mul(z, h2)), V.add(V.mul(F3.x, q[0]), V.mul(F3.y, q[1])));
       const a = inf.br.map(q => at(q, t / 2)), b = inf.br.map(q => at(q, -t / 2));
-      out.push({ pts: a, col: BRK, back: BRK, line: 1 });
-      out.push({ pts: b.slice().reverse(), col: BRK, back: BRK, line: 1 });
-      for (let i = 0; i < a.length; i++) { const j = (i + 1) % a.length; out.push({ pts: [a[i], b[i], b[j], a[j]], col: BRK_SIDE, back: BRK_SIDE }); }
+      out.push({ pts: a, col: bF, back: bF, line: 1, mat: bm });
+      out.push({ pts: b.slice().reverse(), col: bF, back: bF, line: 1, mat: bm });
+      for (let i = 0; i < a.length; i++) { const j = (i + 1) % a.length; out.push({ pts: [a[i], b[i], b[j], a[j]], col: bS, back: bS, mat: bm }); }
       for (let i = g0; i < out.length; i++) out[i].grp = 'b' + bi; bi++;
     }));
   }
@@ -631,7 +653,7 @@ function initGL() {
   const prog = (vs, fs) => { const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p); return p; };
   const VS_HEAD = 'uniform mat3 uR,uM;uniform vec3 uT;uniform float uScl,uDp,uW,uH,uPx,uPy,uZ;vec4 proj(vec3 p){vec3 v=uR*(uM*p)+uT;float f=uDp/(uDp-v.z);return vec4((v.x*uScl*f+uPx)/(uW*0.5),(v.y*uScl*f-uPy)/(uH*0.5),-v.z/uZ,1.0);}';
   const pF = prog('attribute vec3 aP,aN,aC,aB;' + VS_HEAD + 'varying vec3 vC,vB,vW;varying float vS;void main(){gl_Position=proj(aP);vec3 n=normalize(uR*(uM*aN));vS=0.42+0.62*abs(dot(n,normalize(vec3(-0.45,0.65,0.6))));vC=aC;vB=aB;vW=aP;}',
-    'precision mediump float;uniform float uUnlit,uGain,uBox;varying vec3 vC,vB,vW;varying float vS;void main(){if(uBox>0.0&&(abs(vW.x)>uBox||abs(vW.y)>uBox||abs(vW.z)>uBox))discard;vec3 c=gl_FrontFacing?vC:vB;float s=uUnlit>0.5?uGain:vS;gl_FragColor=vec4(min(c*s/255.0,vec3(1.0)),1.0);}');
+    'precision mediump float;uniform float uUnlit,uGain,uBox,uAlpha;uniform vec3 uGlow;varying vec3 vC,vB,vW;varying float vS;void main(){if(uBox>0.0&&(abs(vW.x)>uBox||abs(vW.y)>uBox||abs(vW.z)>uBox))discard;vec3 c=gl_FrontFacing?vC:vB;float s=uUnlit>0.5?uGain:vS;gl_FragColor=vec4(min(c*s/255.0+uGlow,vec3(1.0)),uAlpha);}');
   const pL = prog('attribute vec3 aP;' + VS_HEAD + 'void main(){vec4 q=proj(aP);q.z-=0.0015;gl_Position=q;}',
     'precision mediump float;uniform vec4 uCol;void main(){gl_FragColor=uCol;}');
   return { gl, pF, pL, fb: gl.createBuffer(), lb: gl.createBuffer(), ab: gl.createBuffer(), tb: gl.createBuffer(), nb: gl.createBuffer(), nF: 0, nL: 0, nA: 0, nT: 0, nN: 0 };
@@ -688,7 +710,8 @@ function buildLamp(polys) {
   const E = asp >= 1 ? [D * asp, D, D] : [D, D / asp, D]; // room half-sizes: shaped like the window
   const off = [lampOff[0] * D, lampOff[1] * D, -lampOff[2] * D];
   const Mr = rotM(); // the model turns; the room stays put
-  polys = polys.filter(p => !p.art && !p.laser).map(p => ({ pts: p.pts.map(Mr), holes: p.holes && p.holes.map(h => h.map(Mr)) }));
+  const MCl = matCols();
+  polys = polys.filter(p => !p.art && !p.laser).map(p => ({ pts: p.pts.map(Mr), holes: p.holes && p.holes.map(h => h.map(Mr)), tr: p.mat ? MCl.tr : 0 })).sort((a, b) => b.tr - a.tr);
   const ext = v => Math.abs(v[0]) * E[0] + Math.abs(v[1]) * E[1] + Math.abs(v[2]) * E[2];
   const WALLS = [
     { o: [0, 0, -1], a: [1, 0, 0], b: [0, 1, 0] }, { o: [-1, 0, 0], a: [0, 0, 1], b: [0, 1, 0] },
@@ -716,7 +739,9 @@ function buildLamp(polys) {
       const flat = [], hi = []; let c = 0;
       [outer, ...holes].forEach((r, ri) => { if (ri) hi.push(c); r.forEach(q => { flat.push(q[0], q[1]); c++; }); });
       const all = [].concat(outer, ...holes), idx = window.earcut(flat, hi.length ? hi : null, 2);
-      push(Sv, idx.map(i => at3(all[i][0], all[i][1], Dm)), nIn, [AMB, AMB, AMB - 1]);
+      const pts3 = idx.map(i => at3(all[i][0], all[i][1], Dm));
+      if (!p.tr) push(Sv, pts3, nIn, [AMB, AMB, AMB - 1]);
+      else pts3.forEach(q => { const L2 = V.len(q), I = Math.min(1.6, D * D * dp / (L2 * L2 * L2)) * p.tr, c = LED.map((v, k) => AMB + v * MCl.tint[k] * I); Sv.push(q[0], q[1], q[2], nIn[0], nIn[1], nIn[2], c[0], c[1], c[2], c[0], c[1], c[2]); });
     });
     const wb = gl.createBuffer(), sb = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, wb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Wv), gl.DYNAMIC_DRAW);
@@ -739,7 +764,7 @@ function freeLamp() { if (!G || !G.lamp) return; const gl = G.gl; G.lamp.walls.f
 
 function upload(polys) {
   freeLamp(); if (lampOK()) buildLamp(polys);
-  const gl = G.gl, F = [], Ln = [], An = [], Lt = [], Ln2 = [];
+  const gl = G.gl, F = [], FT = [], Ln = [], An = [], Lt = [], Ln2 = [], MC = matCols();
   polys.forEach(p => {
     if (p.laser) { const v = p.pts; (p.laser === 'tip' ? Lt : Ln2).push(v[0][0], v[0][1], v[0][2], v[1][0], v[1][1], v[1][2]); return; }
     if (p.art) { const v = p.pts, m = p.closed ? v.length : v.length - 1; for (let i = 0; i < m; i++) { const a = v[i], b = v[(i + 1) % v.length]; An.push(a[0], a[1], a[2], b[0], b[1], b[2]); } return; }
@@ -757,10 +782,13 @@ function upload(polys) {
       tri = window.earcut(flat2, holeIdx.length ? holeIdx : null, 2);
     }
     const B = p.back || p.col;
-    tri.forEach(i => { const q = flat3[i]; F.push(q[0], q[1], q[2], n[0], n[1], n[2], p.col[0], p.col[1], p.col[2], B[0], B[1], B[2]); });
+    const dst = p.mat && MC.a < 1 ? FT : F;
+    tri.forEach(i => { const q = flat3[i]; dst.push(q[0], q[1], q[2], n[0], n[1], n[2], p.col[0], p.col[1], p.col[2], B[0], B[1], B[2]); });
     if (p.line || p.edge !== false) all.forEach(ring => { for (let i = 0; i < ring.length; i++) { const a = ring[i], b = ring[(i + 1) % ring.length]; Ln.push(a[0], a[1], a[2], b[0], b[1], b[2]); } });
   });
   gl.bindBuffer(gl.ARRAY_BUFFER, G.fb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(F), gl.DYNAMIC_DRAW); G.nF = F.length / 12;
+  if (!G.tfb) G.tfb = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, G.tfb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(FT), gl.DYNAMIC_DRAW); G.nFT = FT.length / 12;
   gl.bindBuffer(gl.ARRAY_BUFFER, G.lb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Ln), gl.DYNAMIC_DRAW); G.nL = Ln.length / 3;
   gl.bindBuffer(gl.ARRAY_BUFFER, G.ab); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(An), gl.DYNAMIC_DRAW); G.nA = An.length / 3;
   gl.bindBuffer(gl.ARRAY_BUFFER, G.tb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Lt), gl.DYNAMIC_DRAW); G.nT = Lt.length / 3;
@@ -807,6 +835,7 @@ function drawView(vx, vw, W, H, rad) {
   const uF = n => gl.getUniformLocation(G.pF, n);
   const drawF = (buf, cnt) => { if (!cnt) return; gl.bindBuffer(gl.ARRAY_BUFFER, buf); const ls = [at(G.pF, 'aP', 3, 0, 12), at(G.pF, 'aN', 3, 3, 12), at(G.pF, 'aC', 3, 6, 12), at(G.pF, 'aB', 3, 9, 12)]; gl.drawArrays(gl.TRIANGLES, 0, cnt); ls.forEach(l => gl.disableVertexAttribArray(l)); };
   gl.disable(gl.BLEND);
+  gl.uniform1f(uF('uAlpha'), 1); gl.uniform3f(uF('uGlow'), 0, 0, 0);
   if (L) {
     gl.uniformMatrix3fv(uF('uM'), false, I3); // the room does not turn
     gl.uniform1f(uF('uUnlit'), 1);
@@ -824,8 +853,16 @@ function drawView(vx, vw, W, H, rad) {
     gl.disable(gl.DEPTH_TEST); gl.drawArrays(gl.LINES, 0, L.en); gl.enable(gl.DEPTH_TEST); gl.disableVertexAttribArray(ep); gl.disable(gl.BLEND); curM = M3; setU(G.pF);
   }
   gl.uniformMatrix3fv(uF('uM'), false, M3);
-  gl.uniform1f(uF('uUnlit'), 0); gl.uniform1f(uF('uBox'), 0); gl.uniform1f(uF('uGain'), 1);
+  gl.uniform1f(uF('uUnlit'), 0); gl.uniform1f(uF('uBox'), 0); gl.uniform1f(uF('uGain'), 1); gl.uniform1f(uF('uAlpha'), 1);
+  const MCd = matCols(), led = hexRGB(lampColor), gk = L && MCd.tr > 0 ? MCd.tr * 0.55 * Math.min(2, lampGain) / 255 : 0;
+  gl.uniform3f(uF('uGlow'), 0, 0, 0);
   drawF(G.fb, G.nF);
+  if (G.nFT) { // see-through material: blended, drawn after everything solid
+    gl.uniform3f(uF('uGlow'), led[0] * MCd.tint[0] * gk, led[1] * MCd.tint[1] * gk, led[2] * MCd.tint[2] * gk);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
+    gl.uniform1f(uF('uAlpha'), MCd.a); drawF(G.tfb, G.nFT);
+    gl.depthMask(true); gl.disable(gl.BLEND); gl.uniform1f(uF('uAlpha'), 1); gl.uniform3f(uF('uGlow'), 0, 0, 0);
+  }
   setU(G.pL);
   gl.bindBuffer(gl.ARRAY_BUFFER, G.lb);
   const lp = at(G.pL, 'aP', 3, 0, 3);

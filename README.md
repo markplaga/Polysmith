@@ -18,6 +18,7 @@ Open `index.html` in a browser. It's a single self-contained file with no instal
 ## Features
 
 - Size by edge length, width across the points, or height on a table; mm or inches
+- Materials: birch ply, MDF, bamboo, walnut, clear / frosted / coloured / black acrylic, cardstock (look right in 3D; translucent ones let light through in lamp mode; each sets a typical kerf)
 - Kerf and fit compensation, plus a fit-test coupon
 - Face windows (circle, polygon, star) and engraved dice numbers
 - Artwork on faces: upload any SVG, or (inside the Claude app) describe it and have Claude draw it. Fill engrave, line engrave, or cut-through stencil
