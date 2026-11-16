@@ -610,11 +610,21 @@ function upload(polys) {
   gl.bindBuffer(gl.ARRAY_BUFFER, G.nb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Ln2), gl.DYNAMIC_DRAW); G.nN = Ln2.length / 3;
 }
 function rotMat() { const rm = rotM(), a = rm([1, 0, 0]), b = rm([0, 1, 0]), c = rm([0, 0, 1]); return new Float32Array([...a, ...b, ...c]); }
+let stereo = 'off'; const STEREO_ANGLE = 0.075; // about 4.3 degrees between the eyes
 function drawGL(W, H, rad) {
   const gl = G.gl; gl.viewport(0, 0, cv.width, cv.height);
   gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  if (stereo === 'off') { drawView(0, cv.width, W, H, rad); return; }
+  const y0 = yaw, leftEye = y0 + STEREO_ANGLE / 2, rightEye = y0 - STEREO_ANGLE / 2;
+  const order = stereo === 'cross' ? [rightEye, leftEye] : [leftEye, rightEye];
+  const half = Math.floor(cv.width / 2);
+  order.forEach((yv, i) => { yaw = yv; gl.clear(gl.DEPTH_BUFFER_BIT); drawView(i * half, half, W / 2, H, rad); });
+  yaw = y0;
+}
+function drawView(vx, vw, W, H, rad) {
+  const gl = G.gl; gl.viewport(vx, 0, vw, cv.height);
   gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
-  const scl = (solo === 'jig' ? Math.min(W * 0.47, H * 0.75) : Math.min(W, H) * 0.44) * zoom / rad, R3 = rotMat();
+  const scl = (solo === 'jig' ? Math.min(W * 0.47, H * 0.75) : Math.min(W, H) * 0.44) * (stereo === 'off' ? 1 : 0.8) * zoom / rad, R3 = rotMat();
   const setU = p => { gl.useProgram(p); const u = n => gl.getUniformLocation(p, n);
     gl.uniformMatrix3fv(u('uR'), false, R3); gl.uniform1f(u('uScl'), scl); gl.uniform1f(u('uDp'), rad * 5); gl.uniform1f(u('uW'), W); gl.uniform1f(u('uH'), H);
     gl.uniform1f(u('uPx'), panX); gl.uniform1f(u('uPy'), panY); gl.uniform1f(u('uZ'), rad * 1.6); };
@@ -758,6 +768,16 @@ function bindSolo() {
   $('#deck-color').addEventListener('input', e => { st.deckColor = e.target.value; sceneDirty = true; save(); });
   $('#solo').addEventListener('click', e => { const b = e.target.closest('[data-s]'); if (!b) return; solo = b.dataset.s; updSolo(); resetView(); if (solo === 'jig') { yaw = -0.45; pitch = 0.58; } else if (solo !== 'all') { yaw = 0.35; pitch = -0.5; } else { yaw = 0.6; pitch = -0.35; } idle = performance.now() + 2500; sceneDirty = true; viewR = 0; });
 }
+function bindStereo() {
+  const btn = $('#zst'), pill = $('#stereo'), view = $('.view');
+  const set = m => {
+    stereo = m; btn.classList.toggle('on', m !== 'off'); pill.hidden = m === 'off'; view.classList.toggle('stereo', m !== 'off');
+    $$('#stereo [data-m]').forEach(b => b.classList.toggle('on', b.dataset.m === m)); sceneDirty = true;
+  };
+  btn.addEventListener('click', () => set(stereo === 'off' ? 'cross' : 'off')); // always starts in cross-eyed
+  pill.addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (b) set(b.dataset.m); });
+  if (!G) btn.hidden = true;
+}
 function bindMax() {
   const view = $('.view'), btn = $('#zmax');
   const set = on => {
@@ -776,6 +796,6 @@ function bindMax() {
 /* boot */
 try { G = initGL(); } catch (e) { G = null; }
 if (!G) ctx = cv.getContext('2d');
-bind(); bindArt(); bindMax(); bindSolo(); syncInputs(); icons(); compute(); updPlay();
+bind(); bindArt(); bindMax(); bindSolo(); bindStereo(); syncInputs(); icons(); compute(); updPlay();
 requestAnimationFrame(frame);
 })();
