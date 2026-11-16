@@ -123,6 +123,12 @@ ol.jsteps{padding-left:20px;margin:12px 0 0}ol.jsteps li{margin:6px 0;font-size:
 .vbar.dim{opacity:.45}
 .lamp-ctl .lcol{width:28px;height:20px;padding:0;border:1px solid var(--line);border-radius:5px;background:none;cursor:pointer}
 .lamp-ctl .lc{width:16px;height:16px;border-radius:50%;border:1px solid rgba(0,0,0,.4);padding:0;cursor:pointer}
+.card>h2{cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card>h2::after{content:'';width:7px;height:7px;border-right:1.5px solid var(--mute);border-bottom:1.5px solid var(--mute);transform:rotate(45deg) translate(-2px,-2px);transition:transform .2s}
+.card.collapsed>h2::after{transform:rotate(-45deg)}
+.card.collapsed>h2{margin-bottom:0}
+.card.collapsed>:not(h2){display:none!important}
+.card>h2:hover{color:var(--ink)}
 .ov{transition:opacity .6s ease}
 .ov.faded{opacity:.15!important}
 .ov.faded>*{pointer-events:none}

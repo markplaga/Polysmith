@@ -972,9 +972,24 @@ function bindFade() {
     .observe($('.view'), { attributes: true, subtree: true, attributeFilter: ['hidden'] });
 }
 
+
+/* ---------- collapsible sections: tap a section title to fold it ---------- */
+function bindCollapse() {
+  let saved = {}; try { saved = JSON.parse(localStorage.getItem('polysmith-collapsed') || '{}'); } catch (e) { saved = {}; }
+  $$('section.card > h2').forEach(h => {
+    const card = h.parentElement, key = h.textContent.replace(/^[\d\s·]+/, '').trim();
+    h.setAttribute('role', 'button'); h.tabIndex = 0; h.setAttribute('aria-expanded', 'true');
+    const set = on => { card.classList.toggle('collapsed', on); h.setAttribute('aria-expanded', on ? 'false' : 'true'); };
+    if (saved[key]) set(true);
+    const toggle = () => { const on = !card.classList.contains('collapsed'); set(on); saved[key] = on; try { localStorage.setItem('polysmith-collapsed', JSON.stringify(saved)); } catch (e) { /* ignore */ } };
+    h.addEventListener('click', toggle);
+    h.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+  });
+}
+
 /* boot */
 try { G = initGL(); } catch (e) { G = null; }
 if (!G) ctx = cv.getContext('2d');
-bind(); bindArt(); bindMax(); bindSolo(); bindStereo(); bindLamp(); bindFade(); syncInputs(); icons(); compute(); updPlay();
+bind(); bindArt(); bindMax(); bindSolo(); bindStereo(); bindLamp(); bindFade(); bindCollapse(); syncInputs(); icons(); compute(); updPlay();
 requestAnimationFrame(frame);
 })();

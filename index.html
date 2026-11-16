@@ -123,6 +123,12 @@ ol.jsteps{padding-left:20px;margin:12px 0 0}ol.jsteps li{margin:6px 0;font-size:
 .vbar.dim{opacity:.45}
 .lamp-ctl .lcol{width:28px;height:20px;padding:0;border:1px solid var(--line);border-radius:5px;background:none;cursor:pointer}
 .lamp-ctl .lc{width:16px;height:16px;border-radius:50%;border:1px solid rgba(0,0,0,.4);padding:0;cursor:pointer}
+.card>h2{cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card>h2::after{content:'';width:7px;height:7px;border-right:1.5px solid var(--mute);border-bottom:1.5px solid var(--mute);transform:rotate(45deg) translate(-2px,-2px);transition:transform .2s}
+.card.collapsed>h2::after{transform:rotate(-45deg)}
+.card.collapsed>h2{margin-bottom:0}
+.card.collapsed>:not(h2){display:none!important}
+.card>h2:hover{color:var(--ink)}
 .ov{transition:opacity .6s ease}
 .ov.faded{opacity:.15!important}
 .ov.faded>*{pointer-events:none}
@@ -2134,10 +2140,25 @@ function bindFade() {
     .observe($('.view'), { attributes: true, subtree: true, attributeFilter: ['hidden'] });
 }
 
+
+/* ---------- collapsible sections: tap a section title to fold it ---------- */
+function bindCollapse() {
+  let saved = {}; try { saved = JSON.parse(localStorage.getItem('polysmith-collapsed') || '{}'); } catch (e) { saved = {}; }
+  $$('section.card > h2').forEach(h => {
+    const card = h.parentElement, key = h.textContent.replace(/^[\d\s·]+/, '').trim();
+    h.setAttribute('role', 'button'); h.tabIndex = 0; h.setAttribute('aria-expanded', 'true');
+    const set = on => { card.classList.toggle('collapsed', on); h.setAttribute('aria-expanded', on ? 'false' : 'true'); };
+    if (saved[key]) set(true);
+    const toggle = () => { const on = !card.classList.contains('collapsed'); set(on); saved[key] = on; try { localStorage.setItem('polysmith-collapsed', JSON.stringify(saved)); } catch (e) { /* ignore */ } };
+    h.addEventListener('click', toggle);
+    h.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+  });
+}
+
 /* boot */
 try { G = initGL(); } catch (e) { G = null; }
 if (!G) ctx = cv.getContext('2d');
-bind(); bindArt(); bindMax(); bindSolo(); bindStereo(); bindLamp(); bindFade(); syncInputs(); icons(); compute(); updPlay();
+bind(); bindArt(); bindMax(); bindSolo(); bindStereo(); bindLamp(); bindFade(); bindCollapse(); syncInputs(); icons(); compute(); updPlay();
 requestAnimationFrame(frame);
 })();
 </script>
