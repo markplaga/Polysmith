@@ -653,6 +653,7 @@ function buildLamp(polys) {
   const WALLS = [
     { o: [0, 0, -1], a: [1, 0, 0], b: [0, 1, 0] }, { o: [-1, 0, 0], a: [0, 0, 1], b: [0, 1, 0] },
     { o: [1, 0, 0], a: [0, 0, -1], b: [0, 1, 0] }, { o: [0, 1, 0], a: [1, 0, 0], b: [0, 0, -1] },
+    { o: [0, -1, 0], a: [1, 0, 0], b: [0, 0, 1] }, { o: [0, 0, 1], a: [-1, 0, 0], b: [0, 1, 0] },
   ];
   const push = (arr, pts, n, col) => pts.forEach(q => arr.push(q[0], q[1], q[2], n[0], n[1], n[2], col[0], col[1], col[2], col[0], col[1], col[2]));
   G.lamp = { D, walls: [] };
