@@ -1038,8 +1038,26 @@ function sanitizeSVG(text) {
   [...root.attributes].forEach(a => { if (/^on/i.test(a.name)) root.removeAttribute(a.name); });
   return root;
 }
+function expandUses(root) {
+  for (let pass = 0; pass < 4; pass++) {
+    const uses = [...root.querySelectorAll('use')]; if (!uses.length) break;
+    uses.forEach(u => {
+      const ref = (u.getAttribute('href') || u.getAttribute('xlink:href') || u.getAttributeNS('http://www.w3.org/1999/xlink', 'href') || '').trim();
+      const target = ref.startsWith('#') ? root.querySelector('[id="' + ref.slice(1).replace(/"/g, '') + '"]') : null;
+      if (!target || target === u || target.contains(u)) { u.remove(); return; }
+      const g = root.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'g');
+      const x = parseFloat(u.getAttribute('x') || 0), y = parseFloat(u.getAttribute('y') || 0);
+      g.setAttribute('transform', (u.getAttribute('transform') || '') + ` translate(${x || 0},${y || 0})`);
+      ['fill', 'stroke', 'stroke-width', 'style', 'class'].forEach(a => { if (u.hasAttribute(a)) g.setAttribute(a, u.getAttribute(a)); });
+      const clone = target.cloneNode(true); clone.removeAttribute('id');
+      if (clone.nodeName.toLowerCase() === 'symbol') { while (clone.firstChild) g.appendChild(clone.firstChild); } else g.appendChild(clone);
+      u.parentNode.replaceChild(g, u);
+    });
+  }
+}
 function parseArt(text, name) {
   const root = sanitizeSVG(text);
+  expandUses(root);
   const num = v => parseFloat(String(v || '').replace(/[a-z%]+$/i, ''));
   if (!root.getAttribute('viewBox')) { const w = num(root.getAttribute('width')), h = num(root.getAttribute('height')); if (w > 0 && h > 0) root.setAttribute('viewBox', `0 0 ${w} ${h}`); }
   const host = document.createElement('div');
@@ -1730,19 +1748,26 @@ function bindArt() {
     if (!req) { $('#ai-prompt').focus(); return; }
     if (aiCtl) { aiCtl.abort(); return; }
     const S = P.solid(st.solid), shape = { 3: 'equilateral triangle', 4: 'square', 5: 'regular pentagon' }[S.sides];
-    const prompt = `You are designing artwork that a laser will ${st.artMode === 'cut' ? 'cut through' : 'engrave into'} the face of a wooden ${S.name.toLowerCase()} (each face is an ${shape}). Make one SVG for this request: "${req}".\n\nRules:\n- Reply with ONLY the SVG markup, starting with <svg and ending with </svg>. No commentary, no code fences.\n- Use viewBox="0 0 100 100" and xmlns="http://www.w3.org/2000/svg".\n- One colour only: black. Use filled closed shapes (fill="#000") for solid areas${st.artMode === 'line' ? ', or black strokes for linework' : ''}. No gradients, opacity, filters, images, patterns, masks, clip paths or <text> (draw any lettering as paths).\n- ${st.artMode === 'cut' ? 'It is a stencil: every shape must be a closed outline, and nothing may float inside a cut-out (use bridges).' : 'Bold and simple enough to read at 4–6 cm across. No details thinner than about 1 unit.'}\n- Keep the whole design inside a circle of radius 46 centred at (50,50).\n- Keep the file under 12 KB.`;
+    const prompt = `You are designing artwork that a laser will ${st.artMode === 'cut' ? 'cut through' : 'engrave into'} the face of a wooden ${S.name.toLowerCase()} (each face is an ${shape}). Make one SVG for this request: "${req}".\n\nRules:\n- Reply with ONLY the SVG markup, starting with <svg and ending with </svg>. No commentary, no code fences.\n- Use viewBox="0 0 100 100" and xmlns="http://www.w3.org/2000/svg".\n- One colour only: black. Use filled closed shapes (fill="#000") for solid areas${st.artMode === 'line' ? ', or black strokes for linework' : ''}. No gradients, opacity, filters, images, patterns, masks, clip paths, <use>/<defs> or <text> (draw any lettering as paths). For holes, put them in the same path with fill-rule="evenodd" rather than drawing white shapes on top.\n- ${st.artMode === 'cut' ? 'It is a stencil: every shape must be a closed outline, and nothing may float inside a cut-out (use bridges).' : 'Bold and simple enough to read at 4–6 cm across. No details thinner than about 1 unit.'}\n- Keep the whole design inside a circle of radius 46 centred at (50,50).\n- Keep the file under 12 KB.`;
     aiCtl = new AbortController();
     const btn = $('#ai-go'), stat = $('#ai-status');
     btn.textContent = 'Stop'; stat.textContent = 'Thinking…';
     try {
       const { text } = await sampleFn(prompt, { signal: aiCtl.signal, cache: false, onText: ({ text: tx }) => { stat.textContent = `Drawing… ${(tx.length / 1024).toFixed(1)} KB`; } });
-      const m = text.match(/<svg[\s\S]*<\/svg>/i);
-      if (!m) throw { code: 'no_svg' };
-      setArt(m[0], req.slice(0, 40).replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-').toLowerCase() + '.svg');
+      let m = text.match(/<svg[\s\S]*<\/svg>/i), svgText = m && m[0];
+      if (!svgText) { // cut off before </svg>? keep every complete element and close it
+        const i = text.search(/<svg[\s>]/i);
+        if (i < 0) throw { code: 'no_svg' };
+        let body = text.slice(i); const last = Math.max(body.lastIndexOf('/>'), body.lastIndexOf('</path>') + 5, body.lastIndexOf('</g>') + 2);
+        if (last < 10) throw { code: 'no_svg' };
+        body = body.slice(0, last + 2); const opens = (body.match(/<g[\s>]/g) || []).length - (body.match(/<\/g>/g) || []).length;
+        svgText = body + '</g>'.repeat(Math.max(0, opens)) + '</svg>';
+      }
+      setArt(svgText, req.slice(0, 40).replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-').toLowerCase() + '.svg');
       stat.textContent = 'Done. Not quite right? Edit the prompt and try again.';
     } catch (e) {
       const c = e && e.code;
-      stat.textContent = c === 'cancelled' ? 'Stopped.' : c === 'not_granted' || c === 'sampling_disabled' ? "Claude isn't available to this page right now." : c === 'rate_limited' ? 'Too many requests. Wait a minute, then try again.' : c === 'refused' ? "Claude couldn't draw that one. Try describing it differently." : c === 'no_svg' ? "That reply didn't include an SVG. Try again." : 'Something went wrong. Try again.';
+      stat.textContent = c === 'cancelled' ? 'Stopped.' : c === 'not_granted' || c === 'sampling_disabled' ? "Claude isn't available to this page right now." : c === 'rate_limited' ? 'Too many requests. Wait a minute, then try again.' : c === 'refused' ? "Claude couldn't draw that one. Try describing it differently." : c === 'no_svg' ? "That reply didn't include an SVG. Try again." : c === 'upstream_error' ? 'Claude had a hiccup. Try again.' : c === 'empty_completion' ? 'Claude came back empty. Try a simpler description.' : (e && e.message && !c) ? 'Got a drawing but couldn\'t use it: ' + e.message : `Something went wrong${c ? ' (' + c + ')' : ''}. Try again.`;
       if (c === 'not_granted' || c === 'sampling_disabled') { $('#ai').hidden = true; }
     } finally { aiCtl = null; btn.textContent = 'Draw it'; }
   });
