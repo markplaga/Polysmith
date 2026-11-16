@@ -648,11 +648,12 @@ function clipRect2(ring, x0, x1, y0, y1) {
   }
   return pts;
 }
-let lampOff = [0, 0, 0], lampSize = 1; // room offset as a fraction of its half-size: x right, y up, z farther
+let lampOff = [0, 0, 0], lampSize = 1, lampColor = '#ffd6a0'; // room offset as a fraction of its half-size: x right, y up, z farther
 function buildLamp(polys) {
   const gl = G.gl;
   let Rm = 0; polys.forEach(p => { if (!p.art && !p.laser) p.pts.forEach(q => { Rm = Math.max(Rm, V.len(q)); }); });
-  const D = Rm * 2 * lampSize, eps = Rm * 0.04, LED = [255, 214, 160], AMB = 12;
+  const hx = /^#?([0-9a-f]{6})$/i.exec(lampColor) || [0, 'ffd6a0'], LED = [0, 2, 4].map(i => parseInt(hx[1].slice(i, i + 2), 16));
+  const D = Rm * 2 * lampSize, eps = Rm * 0.04, AMB = 12;
   const off = [lampOff[0] * D, lampOff[1] * D, -lampOff[2] * D];
   const WALLS = [
     { o: [0, 0, -1], a: [1, 0, 0], b: [0, 1, 0] }, { o: [-1, 0, 0], a: [0, 0, 1], b: [0, 1, 0] },
@@ -690,7 +691,7 @@ function buildLamp(polys) {
   });
   // the LED: a small glowing octahedron
   const r = Rm * 0.05, Lv = [], vx = [[r, 0, 0], [-r, 0, 0], [0, r, 0], [0, -r, 0], [0, 0, r], [0, 0, -r]];
-  [[0, 2, 4], [2, 1, 4], [1, 3, 4], [3, 0, 4], [2, 0, 5], [1, 2, 5], [3, 1, 5], [0, 3, 5]].forEach(f => push(Lv, f.map(i => vx[i]), [0, 0, 1], [255, 246, 220]));
+  [[0, 2, 4], [2, 1, 4], [1, 3, 4], [3, 0, 4], [2, 0, 5], [1, 2, 5], [3, 1, 5], [0, 3, 5]].forEach(f => push(Lv, f.map(i => vx[i]), [0, 0, 1], LED.map(c => Math.min(255, c * 0.6 + 110))));
   G.lamp.lb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, G.lamp.lb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Lv), gl.DYNAMIC_DRAW); G.lamp.ln = Lv.length / 12;
 }
 function freeLamp() { if (!G || !G.lamp) return; const gl = G.gl; G.lamp.walls.forEach(w => { gl.deleteBuffer(w.wb); gl.deleteBuffer(w.sb); }); gl.deleteBuffer(G.lamp.lb); G.lamp = null; }
@@ -923,6 +924,10 @@ function bindLamp() {
   });
   sl.addEventListener('input', () => { lampGain = sl.value / 100; sync(); });
   ['x', 'y', 'z'].forEach((a, i) => $('#lamp-' + a).addEventListener('input', e => { lampOff[i] = e.target.value / 100; sceneDirty = true; }));
+  try { const c = localStorage.getItem('polysmith-lampcolor'); if (c) lampColor = c; } catch (e) { /* ignore */ }
+  $('#lamp-color').value = lampColor;
+  $('#lamp-color').addEventListener('input', e => { lampColor = e.target.value; sceneDirty = true; try { localStorage.setItem('polysmith-lampcolor', lampColor); } catch (er) { /* ignore */ } });
+  $$('#lamp-ctl .lc').forEach(b => b.addEventListener('click', () => { lampColor = b.dataset.c; $('#lamp-color').value = lampColor; sceneDirty = true; try { localStorage.setItem('polysmith-lampcolor', lampColor); } catch (er) { /* ignore */ } }));
   $('#lamp-size').addEventListener('input', e => { lampSize = e.target.value / 100; viewR = 0; sceneDirty = true; });
   $('#lamp-reset').addEventListener('click', () => { lampOff = [0, 0, 0]; lampSize = 1; ['x', 'y', 'z'].forEach(a => { $('#lamp-' + a).value = 0; }); $('#lamp-size').value = 100; viewR = 0; sceneDirty = true; });
   window.__lampSync = sync;

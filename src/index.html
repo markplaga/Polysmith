@@ -121,6 +121,8 @@ ol.jsteps{padding-left:20px;margin:12px 0 0}ol.jsteps li{margin:6px 0;font-size:
 .solo{position:absolute;left:12px;top:36px;background:rgba(23,25,21,.82)}
 .solo button{padding:6px 11px}
 .vbar.dim{opacity:.45}
+.lamp-ctl .lcol{width:28px;height:20px;padding:0;border:1px solid var(--line);border-radius:5px;background:none;cursor:pointer}
+.lamp-ctl .lc{width:16px;height:16px;border-radius:50%;border:1px solid rgba(0,0,0,.4);padding:0;cursor:pointer}
 .ov{transition:opacity .6s ease}
 .ov.faded{opacity:.15!important}
 .ov.faded>*{pointer-events:none}
@@ -247,6 +249,7 @@ ol.jsteps{padding-left:20px;margin:12px 0 0}ol.jsteps li{margin:6px 0;font-size:
     <div class="zbar"><button id="zin" aria-label="Zoom in">+</button><span id="zlvl">1×</span><button id="zout" aria-label="Zoom out">−</button><button id="zfit" aria-label="Reset view">⤢</button><button id="zmax" aria-label="Full screen">⛶</button><button id="zst" aria-label="Stereo view" title="Stereo view">👓</button><button id="zlamp" aria-label="Lamp mode" title="Lamp mode: LED inside, shadows on the walls">💡</button></div>
     <div class="lamp-ctl" id="lamp-ctl" hidden>
       <div class="lrow"><span>💡 Light</span><input type="range" id="lamp-gain" min="0" max="300" step="5" value="100"><b id="lamp-pct">100%</b></div>
+      <div class="lrow"><span>Colour</span><input type="color" id="lamp-color" class="lcol"><button class="lc" data-c="#ffd6a0" style="background:#ffd6a0" title="Warm white"></button><button class="lc" data-c="#ffffff" style="background:#ffffff" title="Cool white"></button><button class="lc" data-c="#ff9a3c" style="background:#ff9a3c" title="Candle"></button><button class="lc" data-c="#6fb7ff" style="background:#6fb7ff" title="Blue"></button><button class="lc" data-c="#ff5fa2" style="background:#ff5fa2" title="Pink"></button><button class="lc" data-c="#7dff8a" style="background:#7dff8a" title="Green"></button></div>
       <div class="lrow"><span>Room size</span><input type="range" id="lamp-size" min="60" max="250" step="5" value="100"><small>smaller ↔ bigger</small></div>
       <div class="lrow"><span>X</span><input type="range" id="lamp-x" min="-60" max="60" step="1" value="0"><small>left ↔ right</small></div>
       <div class="lrow"><span>Y</span><input type="range" id="lamp-y" min="-60" max="60" step="1" value="0"><small>down ↔ up</small></div>

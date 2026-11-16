@@ -121,6 +121,8 @@ ol.jsteps{padding-left:20px;margin:12px 0 0}ol.jsteps li{margin:6px 0;font-size:
 .solo{position:absolute;left:12px;top:36px;background:rgba(23,25,21,.82)}
 .solo button{padding:6px 11px}
 .vbar.dim{opacity:.45}
+.lamp-ctl .lcol{width:28px;height:20px;padding:0;border:1px solid var(--line);border-radius:5px;background:none;cursor:pointer}
+.lamp-ctl .lc{width:16px;height:16px;border-radius:50%;border:1px solid rgba(0,0,0,.4);padding:0;cursor:pointer}
 .ov{transition:opacity .6s ease}
 .ov.faded{opacity:.15!important}
 .ov.faded>*{pointer-events:none}
@@ -247,6 +249,7 @@ ol.jsteps{padding-left:20px;margin:12px 0 0}ol.jsteps li{margin:6px 0;font-size:
     <div class="zbar"><button id="zin" aria-label="Zoom in">+</button><span id="zlvl">1×</span><button id="zout" aria-label="Zoom out">−</button><button id="zfit" aria-label="Reset view">⤢</button><button id="zmax" aria-label="Full screen">⛶</button><button id="zst" aria-label="Stereo view" title="Stereo view">👓</button><button id="zlamp" aria-label="Lamp mode" title="Lamp mode: LED inside, shadows on the walls">💡</button></div>
     <div class="lamp-ctl" id="lamp-ctl" hidden>
       <div class="lrow"><span>💡 Light</span><input type="range" id="lamp-gain" min="0" max="300" step="5" value="100"><b id="lamp-pct">100%</b></div>
+      <div class="lrow"><span>Colour</span><input type="color" id="lamp-color" class="lcol"><button class="lc" data-c="#ffd6a0" style="background:#ffd6a0" title="Warm white"></button><button class="lc" data-c="#ffffff" style="background:#ffffff" title="Cool white"></button><button class="lc" data-c="#ff9a3c" style="background:#ff9a3c" title="Candle"></button><button class="lc" data-c="#6fb7ff" style="background:#6fb7ff" title="Blue"></button><button class="lc" data-c="#ff5fa2" style="background:#ff5fa2" title="Pink"></button><button class="lc" data-c="#7dff8a" style="background:#7dff8a" title="Green"></button></div>
       <div class="lrow"><span>Room size</span><input type="range" id="lamp-size" min="60" max="250" step="5" value="100"><small>smaller ↔ bigger</small></div>
       <div class="lrow"><span>X</span><input type="range" id="lamp-x" min="-60" max="60" step="1" value="0"><small>left ↔ right</small></div>
       <div class="lrow"><span>Y</span><input type="range" id="lamp-y" min="-60" max="60" step="1" value="0"><small>down ↔ up</small></div>
@@ -1793,11 +1796,12 @@ function clipRect2(ring, x0, x1, y0, y1) {
   }
   return pts;
 }
-let lampOff = [0, 0, 0], lampSize = 1; // room offset as a fraction of its half-size: x right, y up, z farther
+let lampOff = [0, 0, 0], lampSize = 1, lampColor = '#ffd6a0'; // room offset as a fraction of its half-size: x right, y up, z farther
 function buildLamp(polys) {
   const gl = G.gl;
   let Rm = 0; polys.forEach(p => { if (!p.art && !p.laser) p.pts.forEach(q => { Rm = Math.max(Rm, V.len(q)); }); });
-  const D = Rm * 2 * lampSize, eps = Rm * 0.04, LED = [255, 214, 160], AMB = 12;
+  const hx = /^#?([0-9a-f]{6})$/i.exec(lampColor) || [0, 'ffd6a0'], LED = [0, 2, 4].map(i => parseInt(hx[1].slice(i, i + 2), 16));
+  const D = Rm * 2 * lampSize, eps = Rm * 0.04, AMB = 12;
   const off = [lampOff[0] * D, lampOff[1] * D, -lampOff[2] * D];
   const WALLS = [
     { o: [0, 0, -1], a: [1, 0, 0], b: [0, 1, 0] }, { o: [-1, 0, 0], a: [0, 0, 1], b: [0, 1, 0] },
@@ -1835,7 +1839,7 @@ function buildLamp(polys) {
   });
   // the LED: a small glowing octahedron
   const r = Rm * 0.05, Lv = [], vx = [[r, 0, 0], [-r, 0, 0], [0, r, 0], [0, -r, 0], [0, 0, r], [0, 0, -r]];
-  [[0, 2, 4], [2, 1, 4], [1, 3, 4], [3, 0, 4], [2, 0, 5], [1, 2, 5], [3, 1, 5], [0, 3, 5]].forEach(f => push(Lv, f.map(i => vx[i]), [0, 0, 1], [255, 246, 220]));
+  [[0, 2, 4], [2, 1, 4], [1, 3, 4], [3, 0, 4], [2, 0, 5], [1, 2, 5], [3, 1, 5], [0, 3, 5]].forEach(f => push(Lv, f.map(i => vx[i]), [0, 0, 1], LED.map(c => Math.min(255, c * 0.6 + 110))));
   G.lamp.lb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, G.lamp.lb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Lv), gl.DYNAMIC_DRAW); G.lamp.ln = Lv.length / 12;
 }
 function freeLamp() { if (!G || !G.lamp) return; const gl = G.gl; G.lamp.walls.forEach(w => { gl.deleteBuffer(w.wb); gl.deleteBuffer(w.sb); }); gl.deleteBuffer(G.lamp.lb); G.lamp = null; }
@@ -2068,6 +2072,10 @@ function bindLamp() {
   });
   sl.addEventListener('input', () => { lampGain = sl.value / 100; sync(); });
   ['x', 'y', 'z'].forEach((a, i) => $('#lamp-' + a).addEventListener('input', e => { lampOff[i] = e.target.value / 100; sceneDirty = true; }));
+  try { const c = localStorage.getItem('polysmith-lampcolor'); if (c) lampColor = c; } catch (e) { /* ignore */ }
+  $('#lamp-color').value = lampColor;
+  $('#lamp-color').addEventListener('input', e => { lampColor = e.target.value; sceneDirty = true; try { localStorage.setItem('polysmith-lampcolor', lampColor); } catch (er) { /* ignore */ } });
+  $$('#lamp-ctl .lc').forEach(b => b.addEventListener('click', () => { lampColor = b.dataset.c; $('#lamp-color').value = lampColor; sceneDirty = true; try { localStorage.setItem('polysmith-lampcolor', lampColor); } catch (er) { /* ignore */ } }));
   $('#lamp-size').addEventListener('input', e => { lampSize = e.target.value / 100; viewR = 0; sceneDirty = true; });
   $('#lamp-reset').addEventListener('click', () => { lampOff = [0, 0, 0]; lampSize = 1; ['x', 'y', 'z'].forEach(a => { $('#lamp-' + a).value = 0; }); $('#lamp-size').value = 100; viewR = 0; sceneDirty = true; });
   window.__lampSync = sync;
