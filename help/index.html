@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Polysmith Help</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#171915;--panel:#20231e;--panel2:#272b25;--line:#363b33;--ink:#efe6d6;--mute:#a49c8c;--wood:#e2c08d;--laser:#ff5a3c;--blue:#5b8cff;--green:#57c26b}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "IBM Plex Sans",system-ui,sans-serif;-webkit-text-size-adjust:100%}
+a{color:var(--wood)}
+.wrap{display:grid;grid-template-columns:230px 1fr;gap:36px;max-width:1180px;margin:0 auto;padding:28px 22px 80px}
+nav{position:sticky;top:20px;align-self:start;max-height:calc(100vh - 40px);overflow:auto}
+nav a{display:block;color:var(--mute);text-decoration:none;padding:4px 10px;border-left:2px solid var(--line);font-size:14px}
+nav a:hover{color:var(--ink);border-color:var(--wood)}
+nav .back{border:1px solid var(--wood);border-radius:999px;color:var(--wood);text-align:center;margin-bottom:16px;padding:8px}
+header{grid-column:1/-1}
+h1{font:700 44px/1.1 Fraunces,serif;margin:0}
+h1 span{color:var(--wood)}
+.tag{color:var(--mute);margin:6px 0 0;font-size:18px}
+h2{font:600 28px/1.2 Fraunces,serif;margin:56px 0 10px;padding-top:12px;border-top:1px solid var(--line)}
+h3{font:600 19px/1.3 "IBM Plex Sans",sans-serif;margin:28px 0 6px;color:var(--wood)}
+main>section:first-child h2{margin-top:10px;border:0}
+figure{margin:18px 0 22px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px}
+figure img{display:block;width:100%;height:auto;border-radius:8px}
+figure.half{max-width:420px}
+figcaption{color:var(--mute);font-size:14px;padding:8px 4px 2px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pair figure{margin:0}
+ol,ul{padding-left:22px}
+li{margin:4px 0}
+code,kbd{font:500 14px "IBM Plex Mono",monospace;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.tip{background:#2b261b;border-left:3px solid var(--wood);border-radius:8px;padding:10px 14px;margin:16px 0}
+.tip b{color:var(--wood)}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:15px}
+td,th{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{color:var(--mute);font-weight:500}
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+@media (max-width:820px){.wrap{grid-template-columns:1fr}nav{position:static;max-height:none;display:flex;flex-wrap:wrap;gap:6px}nav a{border:1px solid var(--line);border-radius:999px;padding:3px 10px}nav .back{width:100%;margin:0 0 6px}.pair{grid-template-columns:1fr}h1{font-size:36px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Poly<span>smith</span> Help</h1>
+  <p class="tag">How to turn a sheet of plywood into a Platonic solid without the swearing.</p>
+</header>
+
+<nav>
+  <a class="back" href="../index.html">← Back to Polysmith</a>
+  <a href="#start">Quick start</a>
+  <a href="#solids">1 · Solids</a>
+  <a href="#construction">2 · Construction</a>
+  <a href="#size">3 · Size &amp; material</a>
+  <a href="#cutouts">4 · Cut-outs &amp; patterns</a>
+  <a href="#artwork">Artwork on faces</a>
+  <a href="#view">The 3D view</a>
+  <a href="#stereo">Stereo 3D</a>
+  <a href="#lamp">Lamp mode</a>
+  <a href="#jig">Bevel jig</a>
+  <a href="#sheet">Cut sheet &amp; downloads</a>
+  <a href="#tips">Tips &amp; troubleshooting</a>
+</nav>
+
+<main>
+
+<section id="start">
+<h2>Quick start</h2>
+<figure><img src="img/overview.jpg" alt="Polysmith overview: controls on the left, 3D preview on the right"><figcaption>Controls on the left, a live 3D model on the right, and the cut sheet below it.</figcaption></figure>
+<ol>
+  <li><b>Pick a solid</b>: d4, d6, d8, d12 or d20.</li>
+  <li><b>Pick a construction</b>: start with <i>Slot &amp; bracket</i> for wood, or <i>Finger joints</i> if you want no loose parts.</li>
+  <li><b>Measure your sheet with calipers</b> and type in the thickness. This number matters more than any other.</li>
+  <li><b>Set your kerf</b>. 0.15 mm is a good starting guess for a 100 W CO₂ laser in 3 mm ply.</li>
+  <li>Spin the 3D model and slide <b>Explode</b> to check the parts go together.</li>
+  <li>Press <b>Download everything (.zip)</b>, open the SVG in LightBurn, and cut.</li>
+</ol>
+<div class="tip"><b>Cut a test first.</b> In Slot &amp; bracket mode the <i>Fit-test coupon</i> button cuts one slot and one tab in a few seconds. It's cheaper than a whole d20 that falls apart.</div>
+</section>
+
+<section id="solids">
+<h2>1 · Solids</h2>
+<p>There are five buttons, one for each Platonic solid. Each is labelled with its dice name (d4 to d20) and its shape name. Change solids at any time and every other setting stays put.</p>
+<table>
+<tr><th>Solid</th><th>Faces</th><th>Dihedral angle</th><th>Notes</th></tr>
+<tr><td>Tetrahedron (d4)</td><td>4 triangles</td><td>70.5°</td><td>Sharpest joint. With bevelled teeth it needs the steepest jig.</td></tr>
+<tr><td>Cube (d6)</td><td>6 squares</td><td>90°</td><td>The only one with square edges, so it needs no bevel at all.</td></tr>
+<tr><td>Octahedron (d8)</td><td>8 triangles</td><td>109.5°</td><td></td></tr>
+<tr><td>Dodecahedron (d12)</td><td>12 pentagons</td><td>116.6°</td><td>Lovely as a lamp.</td></tr>
+<tr><td>Icosahedron (d20)</td><td>20 triangles</td><td>138.2°</td><td>The flattest joint. It shows gaps the most, so use bevelled teeth.</td></tr>
+</table>
+</section>
+
+<section id="construction">
+<h2>2 · Construction</h2>
+<figure><img src="img/construction.jpg" alt="Construction mode buttons"><figcaption>Five ways to hold a polyhedron together.</figcaption></figure>
+
+<h3>Slot &amp; bracket</h3>
+<p>Each face gets slots near its edges. Small brackets push into the slots on two neighbouring faces and lock them together at exactly the right angle. Each bracket's tabs run straight along its face's direction, so even the <i>last</i> face drops straight in. It's glue-free, so it suits wood, MDF and acrylic.</p>
+<div class="pair">
+<figure><img src="img/solid.jpg" alt="Bracket-assembled solid"><figcaption>The assembled solid, with the brackets inside.</figcaption></figure>
+<figure><img src="img/explode.jpg" alt="Exploded view"><figcaption>Slide <i>Explode</i> to pull the parts apart.</figcaption></figure>
+</div>
+<p>Under <b>Bracket tuning</b> you can set 1, 2 or 3 brackets per edge, the tab length, and how far a tab stands proud of the outside face. Leave the tabs proud if you'd like to sand them flush afterwards.</p>
+
+<h3>Finger joints</h3>
+<p>The edges interlock like a box joint, at the solid's own angle. Every face is identical, so you can't put one in the wrong place. Choose a <b>Teeth</b> style:</p>
+<ul>
+  <li><b>Flush (square cut).</b> Square teeth trimmed so the outside is clean. There are small V-gaps on the inside. It's fine for cubes and good enough for most things.</li>
+  <li><b>Full (sand flush).</b> The teeth are left long. Sand the outside flat after glue-up.</li>
+  <li><b>Bevelled (tightest, needs jig).</b> The teeth are cut at the true joint angle, so they close with no gaps, even on a d20. This needs the <a href="#jig">bevel jig</a>.</li>
+</ul>
+<figure><img src="img/finger.jpg" alt="Finger-jointed solid"><figcaption>Finger joints. The finger width is automatic, about 2.5× the thickness. Set your own if you prefer.</figcaption></figure>
+<figure><img src="img/bevel-3d.jpg" alt="Bevelled teeth close-up"><figcaption>Bevelled teeth: each tooth's tip and notch are angled to meet its neighbour exactly.</figcaption></figure>
+
+<h3>Glue blocks</h3>
+<p>The faces are bare on the outside. Small angled blocks glue in behind each edge, so you get clean faces with all the structure hidden.</p>
+
+<h3>Edge-glued</h3>
+<p>These are plain panels, inset so the thickness works out, plus printed angle jigs that hold two faces at the right angle while the glue sets. Best for acrylic with solvent cement.</p>
+
+<h3>Folding net</h3>
+<p>The whole solid comes out as one flat piece with glue tabs. Fold lines go on the blue score layer, or you can choose a perforated cut. For card, paper and chipboard. In this mode the slider under the 3D view says <b>Fold</b> and folds the net up live.</p>
+<div class="pair">
+<figure><img src="img/net.jpg" alt="Folding net folding up in 3D"><figcaption>The net folding itself up.</figcaption></figure>
+<figure><img src="img/jig-card.jpg" alt="Jig card"><figcaption>The jig card in the settings column.</figcaption></figure>
+</div>
+</section>
+
+<section id="size">
+<h2>3 · Size &amp; material</h2>
+<figure><img src="img/size.jpg" alt="Size and material panel"><figcaption>Size, thickness, kerf and fit.</figcaption></figure>
+<ul>
+  <li><b>Material</b>: birch ply, MDF, bamboo ply, walnut, clear/frosted/coloured/black acrylic, or cardstock. This changes how the 3D model and lamp mode look. Coloured acrylic gets a colour picker.</li>
+  <li><b>Opacity</b> appears only for see-through materials (clear, frosted, coloured). Lower it to let more light through in lamp mode.</li>
+  <li><b>Size measured as</b> edge length, across the points (the size of the ball it fits in), or height when it sits flat on a table.</li>
+  <li><b>Material thickness</b>: measure it, because a "3 mm" sheet is often 2.7 mm or 3.2 mm. The chips fill in common sizes.</li>
+  <li><b>Kerf</b>: how wide your beam cuts. Polysmith offsets every slot and tooth by half of it.</li>
+  <li><b>Fit</b>: a positive number loosens the joints and a negative one tightens them. Nudge it by 0.05 mm at a time.</li>
+  <li><b>Dice numbers</b> engraves 1…N on the faces, with opposite faces adding up to N+1, like real dice.</li>
+</ul>
+<figure><img src="img/material.jpg" alt="Material picker"><figcaption>Materials, with the opacity slider for translucent acrylic.</figcaption></figure>
+<figure><img src="img/acrylic.jpg" alt="Frosted acrylic model"><figcaption>Frosted acrylic in the 3D view.</figcaption></figure>
+</section>
+
+<section id="cutouts">
+<h2>4 · Cut-outs &amp; patterns</h2>
+<p>Holes cut into every face. They're great for lamps and to save weight.</p>
+<ul>
+  <li><b>Windows</b>: a single circle, polygon or star. <i>Size</i> sets how much of the face it takes up.</li>
+  <li><b>Patterns</b>: dots, honeycomb, diamond lattice, Voronoi cells, starfield, sunburst, rings, moon &amp; stars, and flower. <i>Density</i> sets how many holes; <i>Bridge width</i> sets the thinnest strip of material left between them.</li>
+</ul>
+<p>Polysmith keeps every hole clear of the edges, slots and teeth, so nothing falls out and the joints stay strong.</p>
+<div class="pair">
+<figure><img src="img/cutouts.jpg" alt="Cut-out options"><figcaption>The cut-out menu.</figcaption></figure>
+<figure><img src="img/pattern-3d.jpg" alt="Patterned solid in 3D"><figcaption>A pattern on a dodecahedron.</figcaption></figure>
+</div>
+<div class="tip"><b>Bridge width:</b> keep it at least 1.5× your thickness in plywood. Thin bridges char and snap.</div>
+</section>
+
+<section id="artwork">
+<h2>Artwork on the faces</h2>
+<figure class="half"><img src="img/artwork.jpg" alt="Artwork panel"><figcaption>The artwork panel.</figcaption></figure>
+<ul>
+  <li><b>Upload SVG</b> puts any SVG on the faces. It's centred on each face automatically and scaled to fit, even if the drawing sat off to one side of its page.</li>
+  <li><b>Import folder</b> loads a whole folder of SVGs into the drop-down library, so you can flick between designs. <i>Clear library</i> empties it.</li>
+  <li><b>Draw it</b>: when Polysmith is open in the Claude app, describe a picture (for example, "a fox curled up asleep, woodcut style") and Claude draws an SVG made for the laser.</li>
+  <li><b>Laser does</b>: <i>Fill engrave</i> (black layer), <i>Line engrave</i> (green layer) or <i>Cut through</i>, which makes a stencil.</li>
+  <li><b>Size</b>, <b>Rotate</b>, and <b>Put it on</b> every face or just one.</li>
+</ul>
+<figure><img src="img/artwork-3d.jpg" alt="Artwork shown on the 3D model"><figcaption>Artwork shows up on the 3D model straight away.</figcaption></figure>
+<div class="tip"><b>Text in SVGs:</b> convert text to outlines (paths) before uploading. Polysmith skips live text elements and will tell you so.</div>
+</section>
+
+<section id="view">
+<h2>The 3D view</h2>
+<figure><img src="img/view-controls.jpg" alt="3D view controls"><figcaption>The round buttons on the right edge of the 3D view.</figcaption></figure>
+<table>
+<tr><th>Do this</th><th>To</th></tr>
+<tr><td>Drag</td><td>spin</td></tr>
+<tr><td>Scroll / pinch</td><td>zoom</td></tr>
+<tr><td>Shift-drag / two fingers</td><td>pan</td></tr>
+<tr><td>Double-click</td><td>reset the view</td></tr>
+<tr><td><code>+</code> <code>−</code> <code>⤢</code></td><td>zoom in, zoom out, fit</td></tr>
+<tr><td><code>⛶</code></td><td>full screen</td></tr>
+<tr><td>👓</td><td><a href="#stereo">stereo 3D</a></td></tr>
+<tr><td>💡</td><td><a href="#lamp">lamp mode</a></td></tr>
+<tr><td>▶ and the slider</td><td>explode the parts apart (or fold up the net)</td></tr>
+</table>
+<p>The buttons along the top choose what you're looking at: <b>Whole</b> (the full solid), <b>One face</b>, <b>Bracket</b> (a single piece, to check its shape) and <b>Jig</b> (the bevel jig, when bevelled teeth are on).</p>
+<figure><img src="img/one-face.jpg" alt="One face view"><figcaption><i>One face</i> shows a single piece on its own.</figcaption></figure>
+<div class="tip"><b>Where did my buttons go?</b> After 10 seconds the overlay controls fade to 15% so they don't block the model. Tap them once to bring them back, then tap again to use them.</div>
+</section>
+
+<section id="stereo">
+<h2>Stereo 3D</h2>
+<p>The 👓 button shows two views side by side, so the model pops out in real 3D with no glasses. It always starts in <b>Cross-eyed</b> mode.</p>
+<figure><img src="img/stereo.jpg" alt="Stereo pair"><figcaption>A cross-eyed stereo pair.</figcaption></figure>
+<ul>
+  <li><b>Cross-eyed:</b> hold a fingertip halfway between your eyes and the screen. Look at your finger until the two pictures behind it merge into a third one in the middle, then move your finger away and keep looking.</li>
+  <li><b>Parallel:</b> relax your eyes as if looking through the screen at a far wall (like a Magic Eye picture). This works best in a small window.</li>
+  <li><b>Off</b> goes back to one view.</li>
+</ul>
+</section>
+
+<section id="lamp">
+<h2>Lamp mode</h2>
+<p>Press 💡 to put an LED in the middle of the model and close it inside a room. Light streams through every cut-out, pattern and stencil and throws shadows on the walls, floor and ceiling, so you'll see how your lamp looks before you cut it. Only the model turns; the room stays still and fills the window.</p>
+<figure><img src="img/lamp.jpg" alt="Lamp mode with shadows on the walls"><figcaption>A patterned dodecahedron in lamp mode.</figcaption></figure>
+<ul>
+  <li><b>Light</b>: brightness, 0–300%.</li>
+  <li><b>Colour</b>: pick any colour, or tap a preset swatch (warm white, cool white and so on).</li>
+  <li><b>Room size</b>: moves the walls closer or further away. Close walls give sharp, big shadows.</li>
+  <li><b>X / Y / Z</b>: moves the room around the lamp, as if hanging it off-centre.</li>
+  <li><b>Reset walls</b> puts everything back.</li>
+</ul>
+<div class="tip"><b>Materials matter here.</b> Wood blocks light, so only the holes glow. Frosted or coloured acrylic lets the faces glow too. Lower the <i>Opacity</i> slider to brighten them.</div>
+</section>
+
+<section id="jig">
+<h2>Bevel jig</h2>
+<p>Bevelled teeth need the tooth tips and notches cut at an angle. A laser cuts straight down, so instead we tilt the <i>sheet</i>. The jig is a ramp of laser-cut supports that holds your face blank at exactly the right tilt for this solid.</p>
+<figure><img src="img/jig-3d.jpg" alt="Bevel jig in 3D"><figcaption>The <i>Jig</i> tab shows the ramp with the face pieces sitting on it. Orange are tip cuts, purple are notch cuts. You can change the deck colour.</figcaption></figure>
+<ol>
+  <li>Cut all the faces flat as normal (the red layer).</li>
+  <li>Cut the jig parts from the <b>Jig</b> sheet and glue the ramp together.</li>
+  <li><b>Cut the jig's base plate in place</b> and don't move it. The bevel lines then line up with the laser. In LightBurn use <b>Absolute Coords</b> for the jig files.</li>
+  <li>Set each face on the ramp in its pocket. The Bevel jig card says whether the outside face goes <i>up</i> or <i>down</i>; for d8, d12 and d20 it's outside face down.</li>
+  <li>Run the orange (tip) layer, then the purple (notch) layer, with the focus set for the tilted surface.</li>
+</ol>
+<div class="tip"><b>Focus:</b> on a tilted part the surface height changes across the cut. Focus on the middle of the tooth line. On 3 mm stock the difference is small enough for a 100 W laser to cut cleanly.</div>
+</section>
+
+<section id="sheet">
+<h2>Cut sheet &amp; downloads</h2>
+<figure><img src="img/cutsheet.jpg" alt="Cut sheet"><figcaption>Every part nested onto your stock size. Tabs above it switch between sheets.</figcaption></figure>
+<table>
+<tr><th>Colour</th><th>Layer</th><th>Laser setting</th></tr>
+<tr><td><span class="sw" style="background:#ff0000"></span>Red</td><td>Cut</td><td>Cut through. Do this last.</td></tr>
+<tr><td><span class="sw" style="background:#0000ff"></span>Blue</td><td>Score / fold</td><td>Light cut, part way through.</td></tr>
+<tr><td><span class="sw" style="background:#00a000"></span>Green</td><td>Line engrave</td><td>Fast, low-power line.</td></tr>
+<tr><td><span class="sw" style="background:#000;border:1px solid #555"></span>Black</td><td>Fill engrave</td><td>Scan / fill.</td></tr>
+</table>
+<ul>
+  <li><b>Download everything (.zip)</b> gives every sheet as SVG and DXF, plus a README with the settings you used.</li>
+  <li><b>SVG</b> / <b>DXF</b> gives just the sheet you're looking at.</li>
+  <li>Files are in millimetres at 1:1 with hairline strokes. LightBurn, Glowforge, xTool and RDWorks all open them.</li>
+  <li><b>Sheet</b> settings: stock size (presets or custom), part spacing and edge margin.</li>
+</ul>
+<p>Below the cut sheet, the <b>Assembly</b> card gives step-by-step build instructions for the mode you've chosen.</p>
+</section>
+
+<section id="tips">
+<h2>Tips &amp; troubleshooting</h2>
+<h3>Joints are too loose</h3>
+<p>Lower the <b>Fit</b> setting (try −0.05) or raise the kerf a little. Then re-measure your thickness.</p>
+<h3>Joints are too tight or won't go in</h3>
+<p>Raise <b>Fit</b> by +0.05. Plywood swells in humid weather, and MDF crushes, so it forgives more.</p>
+<h3>Gaps on the outside of a d20 or d12</h3>
+<p>That's square teeth meeting at a wide angle. Switch the teeth to <b>Bevelled</b> and use the jig, or choose <b>Full</b> and sand flush.</p>
+<h3>My SVG is off-centre, tiny or missing parts</h3>
+<p>Polysmith centres and scales it automatically. If parts are missing, convert text and strokes to paths in Inkscape (<i>Path → Object to Path</i>, then <i>Stroke to Path</i>).</p>
+<h3>"Draw it" isn't there</h3>
+<p>Claude drawing only works when Polysmith is opened inside the Claude app. On the GitHub Pages copy, upload an SVG instead.</p>
+<h3>The 3D buttons disappeared</h3>
+<p>They faded. Tap once to wake them up.</p>
+<h3>Start over</h3>
+<p><b>Reset everything</b> at the bottom of the Sheet card. Your settings are otherwise remembered between visits.</p>
+<p style="margin-top:40px"><a href="../index.html">← Back to Polysmith</a></p>
+</section>
+
+</main>
+</div>
+</body>
+</html>
