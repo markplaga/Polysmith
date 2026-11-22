@@ -321,6 +321,60 @@ function result(R, opt = {}) {
   return out;
 }
 
+
+/* ---------- settings files: everything about a design (and optionally the 3D view and artwork library) as JSON ---------- */
+const FORMAT = 'polysmith-settings', FILE_VERSION = 2;
+const VIEW_KEYS = { yaw: [-3600, 3600], pitch: [-90, 90], zoom: [0.2, 12], explode: [0, 1] };
+function checkView(v) {
+  if (v == null) return null;
+  if (!isRec(v)) throw new TypeError('view must be an object');
+  const o = {};
+  for (const [k, x] of Object.entries(v)) {
+    if (VIEW_KEYS[k]) { if (typeof x !== 'number' || x < VIEW_KEYS[k][0] || x > VIEW_KEYS[k][1]) throw new RangeError(`view.${k} must be between ${VIEW_KEYS[k][0]} and ${VIEW_KEYS[k][1]}`); o[k] = x; }
+    else if (k === 'view') { if (!['whole', 'face', 'bracket', 'jig'].includes(x)) throw new RangeError('view.view must be whole, face, bracket or jig'); o[k] = x; }
+    else if (k === 'stereo') { if (!['off', 'cross', 'parallel'].includes(x)) throw new RangeError('view.stereo must be off, cross or parallel'); o[k] = x; }
+    else if (k === 'spin') o[k] = !!x;
+    else if (k === 'lamp') {
+      if (!isRec(x)) throw new TypeError('view.lamp must be an object');
+      const L = {}, lim = { gain: [0, 3], roomSize: [0.6, 2.5], x: [-0.6, 0.6], y: [-0.6, 0.6], z: [-0.6, 0.6] };
+      for (const [lk, lv] of Object.entries(x)) {
+        if (lk === 'on') L.on = !!lv;
+        else if (lk === 'color') { if (!/^#[0-9a-f]{6}$/i.test(lv)) throw new RangeError('view.lamp.color must look like #rrggbb'); L.color = lv; }
+        else if (lim[lk]) { if (typeof lv !== 'number' || lv < lim[lk][0] || lv > lim[lk][1]) throw new RangeError(`view.lamp.${lk} must be between ${lim[lk][0]} and ${lim[lk][1]}`); L[lk] = lv; }
+        else throw new RangeError('Unknown lamp setting: ' + lk);
+      }
+      o.lamp = L;
+    } else throw new RangeError('Unknown view setting: ' + k);
+  }
+  return o;
+}
+function checkLibrary(lib) {
+  if (lib == null) return null;
+  if (!Array.isArray(lib) || lib.some(x => !isRec(x) || typeof x.name !== 'string' || typeof x.svg !== 'string')) throw new TypeError('library must be [{ name, svg }]');
+  return lib.map(x => ({ name: x.name, svg: x.svg }));
+}
+/** The settings-file object: { format, version, app, exported, settings, art?, view?, library? }. */
+function exportDoc(settings, { art = null, view = null, library = null, date = true } = {}) {
+  const doc = { format: FORMAT, version: FILE_VERSION, app: 'Polysmith ' + VERSION };
+  if (date) doc.exported = new Date().toISOString();
+  doc.settings = normalize(settings);
+  const a = checkArt(art); if (a) doc.art = { name: a.name, svg: a.svg || '', polys: a.polys, texts: a.texts || 0 };
+  const v = checkView(view); if (v) doc.view = v;
+  const l = checkLibrary(library); if (l) doc.library = l;
+  return doc;
+}
+/** Reads a settings file (any version, or a bare settings object). Returns { settings, art, view, library }. */
+function importDoc(json) {
+  let o = json;
+  if (typeof json === 'string') { try { o = JSON.parse(json); } catch (e) { throw new SyntaxError("That isn't a Polysmith settings file (not valid JSON)."); } }
+  if (!isRec(o)) throw new TypeError("That isn't a Polysmith settings file.");
+  if (o.format !== undefined && o.format !== FORMAT) throw new RangeError(`That file is a ${o.format} file, not Polysmith settings.`);
+  if (o.format === FORMAT && o.version > FILE_VERSION) throw new RangeError('That settings file is from a newer Polysmith. Update this copy and try again.');
+  const wrapped = o.format === FORMAT;
+  const art = wrapped && o.art ? (Array.isArray(o.art.polys) ? checkArt({ name: o.art.name || 'artwork.svg', svg: o.art.svg || '', polys: o.art.polys, texts: o.art.texts || 0 }) : (typeof o.art.svg === 'string' ? { name: o.art.name || 'artwork.svg', svg: o.art.svg, polys: null } : null)) : null;
+  return { settings: normalize(wrapped ? o.settings : o), art, view: wrapped ? checkView(o.view) : null, library: wrapped ? checkLibrary(o.library) : null };
+}
+
 /* ---------- the public API object (shared by page and Node) ---------- */
 function api(extra = {}) {
   const prep = (settings, art) => compute(normalize(settings), checkArt(art));
@@ -349,8 +403,15 @@ function api(extra = {}) {
       edge: settings => r3(edgeFromSize(normalize(settings))),
       /** Same object, re-expressed with another size measure ('edge', 'sphere' or 'height'), keeping the physical size. */
       remeasure(settings, measure) { const s = normalize(settings); check('measure', measure); const L = edgeFromSize(s); return create({ measure, size: r3(sizeFromEdge({ ...s, measure }, L)) }, s); },
-      serialize: settings => JSON.stringify({ format: 'polysmith-settings', version: 1, settings: normalize(settings) }, null, 2),
-      parse(json) { const o = typeof json === 'string' ? JSON.parse(json) : json; return normalize(isRec(o) && o.format === 'polysmith-settings' ? o.settings : o); },
+      /** Everything about a design as a JSON settings file. options: art, view, library (all optional). */
+      export: (settings = {}, opt = {}) => JSON.stringify(exportDoc(settings, opt), null, 2),
+      /** The same, as an object instead of text. */
+      exportObject: (settings = {}, opt = {}) => exportDoc(settings, opt),
+      /** Reads a settings file (text or object). Returns { settings, art, view, library }; missing parts are null. */
+      import: json => importDoc(json),
+      /** Short forms: settings only. */
+      serialize: settings => JSON.stringify(exportDoc(settings), null, 2),
+      parse: json => importDoc(json).settings,
     },
     art: {
       /** Points in any units. y points down like SVG unless { yUp: true }. Each item is [[x,y],...] or { pts, closed }. */
@@ -378,5 +439,5 @@ function api(extra = {}) {
   return A;
 }
 
-G.PolyEngine = { VERSION, DEF, MATS, SOLIDS, MODES, WINDOWS, SHEETS, ENUMS, create, normalize, check, edgeFromSize, sizeFromEdge, rdp, normalizeArt, checkArt, compute, sheetDims, baseName, fname, guideText, readme, files, jigFiles, zipBlob, couponSVG, result, api };
+G.PolyEngine = { VERSION, FORMAT, exportDoc, importDoc, checkView, DEF, MATS, SOLIDS, MODES, WINDOWS, SHEETS, ENUMS, create, normalize, check, edgeFromSize, sizeFromEdge, rdp, normalizeArt, checkArt, compute, sheetDims, baseName, fname, guideText, readme, files, jigFiles, zipBlob, couponSVG, result, api };
 })(typeof window !== 'undefined' ? window : globalThis);

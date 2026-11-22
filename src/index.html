@@ -97,6 +97,7 @@ ol#guide{margin:0;padding-left:20px}ol#guide li{margin:6px 0;font-size:14px}
 .foot{color:var(--mute);font-size:12.5px;margin-top:10px}
 .toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);opacity:0;background:var(--ink);color:#1a1a1a;padding:10px 16px;border-radius:999px;font-weight:500;transition:.25s;pointer-events:none;z-index:9}
 .toast.show{opacity:1;transform:translate(-50%,0)}.toast.bad{background:#ff9b8a}
+.setio{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:6px}.setio .linkbtn{margin-left:auto}
 .linkbtn{background:none;border:0;color:var(--mute);text-decoration:underline;cursor:pointer;font-size:12.5px;padding:0}
 
 .view.max{position:fixed;inset:0;z-index:50;border-radius:0;margin:0;border:0;background:radial-gradient(120% 90% at 50% 30%,#2b3027 0%,#111310 75%)}
@@ -251,7 +252,7 @@ ol.jsteps{padding-left:20px;margin:12px 0 0}ol.jsteps li{margin:6px 0;font-size:
     <div class="row"><label>Height</label><div class="num"><input data-k="sheetH" inputmode="decimal"><i data-unit></i></div></div>
     <div class="row"><label>Part spacing</label><div class="num"><input data-k="spacing" inputmode="decimal"><i data-unit></i></div></div>
     <div class="row"><label>Edge margin</label><div class="num"><input data-k="margin" inputmode="decimal"><i data-unit></i></div></div>
-    <button class="linkbtn" id="reset">Reset everything</button>
+    <div class="setio"><button class="btn small" id="set-export">Export settings</button><label class="btn small">Import settings<input type="file" id="set-import" accept=".json,application/json" hidden></label><button class="linkbtn" id="reset">Reset everything</button></div>
   </section>
 </div>
 

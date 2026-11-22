@@ -74,6 +74,29 @@ test('settings are checked', () => {
   assert.equal(Polysmith.settings.parse(json).solid, 'tetra');
 });
 
+test('settings files: export and import everything', () => {
+  const art = Polysmith.art.fromPolylines([[[0, 0], [10, 0], [5, 9], [0, 0]]], { name: 'tri' });
+  const view = { yaw: 30, pitch: 15, zoom: 1.5, view: 'whole', explode: 0.25, spin: false, stereo: 'cross', lamp: { on: true, gain: 1.8, color: '#ff8800', roomSize: 1.3, x: 0.1, y: -0.2, z: 0 } };
+  const library = [{ name: 'a.svg', svg: '<svg viewBox="0 0 1 1"/>' }];
+  const text = Polysmith.settings.export({ solid: 'octa', mode: 'finger', material: 'frost', size: 120 }, { art, view, library });
+  const doc = JSON.parse(text);
+  assert.equal(doc.format, 'polysmith-settings'); assert.equal(doc.version, 2); assert.ok(doc.exported);
+  assert.deepEqual(Object.keys(doc.settings).sort(), Object.keys(Polysmith.settings.defaults()).sort(), 'every setting is in the file');
+  const back = Polysmith.settings.import(text);
+  assert.equal(back.settings.solid, 'octa'); assert.equal(back.settings.kerf, 0.1);
+  assert.deepEqual(back.view, view); assert.deepEqual(back.library, library); assert.deepEqual(back.art.polys, art.polys);
+  assert.deepEqual(Polysmith.design.compute(back.settings, { art: back.art, files: false }).stats, Polysmith.design.compute({ solid: 'octa', mode: 'finger', material: 'frost', size: 120 }, { art, files: false }).stats);
+  const bare = Polysmith.settings.import({ solid: 'tetra' });
+  assert.equal(bare.settings.solid, 'tetra'); assert.equal(bare.art, null); assert.equal(bare.view, null);
+  assert.equal(Polysmith.settings.parse(Polysmith.settings.serialize({ size: 55 })).size, 55);
+  const v1 = JSON.stringify({ format: 'polysmith-settings', version: 1, settings: { solid: 'cube' } });
+  assert.equal(Polysmith.settings.import(v1).settings.solid, 'cube');
+  assert.throws(() => Polysmith.settings.import('{nope'), SyntaxError);
+  assert.throws(() => Polysmith.settings.import({ format: 'boxsmith-layout' }), RangeError);
+  assert.throws(() => Polysmith.settings.import({ format: 'polysmith-settings', version: 99, settings: {} }), RangeError);
+  assert.throws(() => Polysmith.settings.export({}, { view: { lamp: { gain: 9 } } }), RangeError);
+});
+
 test('bevelled teeth come with a jig (except the cube)', () => {
   const d = Polysmith.design.compute({ solid: 'icosa', mode: 'finger', fingerStyle: 'bevel' });
   assert.ok(d.jig.needed); assert.equal(d.jig.outsideFace, 'down');
@@ -166,5 +189,17 @@ test('browser-backed API', async t => {
     assert.equal(off.view, 'bracket'); assert.equal(off.explode, 0.5);
     assert.equal(await pg.evaluate(() => document.querySelector('[data-k=size]').value), '95', 'updateSettings keeps the earlier size and the inputs show it');
     await assert.rejects(() => pg.evaluate(() => Polysmith.browser.view({ view: 'jig' })), /isn't available/);
+    const round = await pg.evaluate(async () => {
+      Polysmith.browser.setSettings({ solid: 'dodeca', window: 'rings', size: 101 });
+      await Polysmith.browser.setArt('<svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>', 'dot.svg');
+      Polysmith.browser.view({ lamp: { on: true, color: '#00ff88', gain: 1.2 }, yaw: 7, spin: false });
+      const file = Polysmith.browser.exportSettings({ library: true });
+      Polysmith.browser.reset(); Polysmith.browser.clearArt(); Polysmith.browser.view({ lamp: false });
+      const r = await Polysmith.browser.importSettings(file);
+      return { r, s: Polysmith.browser.getSettings(), art: Polysmith.browser.getArt().name, v: Polysmith.browser.view({}), file: JSON.parse(file) };
+    });
+    assert.equal(round.s.size, 101); assert.equal(round.s.window, 'rings'); assert.equal(round.art, 'dot.svg');
+    assert.equal(round.v.lamp.color, '#00ff88'); assert.equal(round.v.yaw, 7); assert.ok(round.file.library.length >= 1);
+    assert.equal(full.settings.import(round.file).art.name, 'dot.svg');
   });
 });

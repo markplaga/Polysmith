@@ -44,7 +44,10 @@ A design is one settings object. Every control on the page is a key (a test chec
 | `settings.validate(settings)` | `{ ok: true }` or `{ ok: false, error }`. |
 | `settings.edge(settings)` | The edge length in mm, whichever way the size was given. |
 | `settings.remeasure(settings, 'edge' \| 'sphere' \| 'height')` | The same physical size, given another way. |
-| `settings.serialize(settings)` / `settings.parse(json)` | Save and load settings as JSON. |
+| `settings.export(settings, { art, view, library })` | A JSON settings file (text) with every setting, plus artwork, 3D view and library if you give them. See **Settings files** below. |
+| `settings.exportObject(...)` | The same, as an object. |
+| `settings.import(json)` | Reads a settings file (text or object): `{ settings, art, view, library }`. Parts the file doesn't have are `null`. |
+| `settings.serialize(settings)` / `settings.parse(json)` | Short forms: a file with just the settings, and just the settings back. |
 
 The main keys:
 
@@ -65,6 +68,43 @@ The main keys:
 | `deckColor`, `units` | The jig deck colour in 3D; `'mm'` or `'in'` for display |
 
 Lists: `solids.list()`, `modes.list()`, `materials.list()`, `cutouts.list()` and `sheets.presets()`. `solids.measure('icosa', { acrossPoints: 200 })` converts between edge length, size across the points, and height.
+
+## Settings files (JSON)
+
+The **Export settings** button (in the Sheet card) and `settings.export` write the same file. The **Import settings** button and `settings.import` read it.
+
+```json
+{
+  "format": "polysmith-settings",
+  "version": 2,
+  "app": "Polysmith 1.0.0",
+  "exported": "2026-11-22T05:10:00.000Z",
+  "settings": { "solid": "dodeca", "mode": "finger", "size": 100, "t": 3, "kerf": 0.15, "...": "every setting" },
+  "art": { "name": "fox.svg", "svg": "<svg ...>", "polys": [{ "pts": [[0.1, 0.2]], "closed": true }], "texts": 0 },
+  "view": { "yaw": 34, "pitch": 20, "zoom": 1, "view": "whole", "explode": 0, "spin": true, "stereo": "off",
+            "lamp": { "on": true, "gain": 1.5, "color": "#ffd6a0", "roomSize": 1, "x": 0, "y": 0, "z": 0 } },
+  "library": [{ "name": "fox.svg", "svg": "<svg ...>" }]
+}
+```
+
+- `settings` is always complete: every key, including the ones left at their defaults. Only `settings` is required.
+- `art` holds both the original SVG and the traced paths, so Node can use it without a browser.
+- `view` is the 3D view: camera, explode, auto-spin, stereo, and the lamp (on, brightness, colour, room size and position).
+- `library` is the artwork library. The Export button includes it when the library has 60 designs or fewer.
+
+Importing also accepts older version 1 files and plain settings objects. It throws `SyntaxError` for text that isn't JSON, `RangeError` for another app's file or a newer version, and the usual `RangeError` / `TypeError` for bad values.
+
+```js
+const fs = require('node:fs');
+const Polysmith = require('./polysmith-api.js');
+
+const file = Polysmith.settings.export({ solid: 'icosa', mode: 'finger', fingerStyle: 'bevel', size: 90 },
+  { view: { yaw: 20, lamp: { on: true, color: '#ff9a50' } } });
+fs.writeFileSync('d20.json', file);                  // open it with Import settings in Polysmith
+
+const { settings, art } = Polysmith.settings.import(fs.readFileSync('d20.json', 'utf8'));
+const design = Polysmith.design.compute(settings, { art });
+```
 
 ## Designs: `design`
 
@@ -152,7 +192,9 @@ This works in the page, or in Node through `await Polysmith.page()`, which retur
 | `play(on = true)` | Plays the explode or fold animation. |
 | `setArt(svg, name)` / `clearArt()` / `getArt()` | The artwork on the faces. |
 | `sheet(index)` | Shows cut sheet `index` (from 1). With no index, it says which sheet is showing. |
-| `download(kind)` | `'zip'`, `'svg'`, `'dxf'` (the sheet showing), `'coupon'`, `'readme'`, `'settings'`, `'jigParts'`, `'jigStation'`, as the buttons do. |
+| `exportSettings({ art = true, view = true, library = false })` | The page's settings file as JSON text: every setting, plus its artwork, 3D view and lamp, and the library if you ask. |
+| `await importSettings(json, { art, view, library })` | Loads a settings file into the page, like **Import settings**. Returns `{ settings, art, view, library }`, saying what it loaded. |
+| `download(kind)` | `'zip'`, `'svg'`, `'dxf'` (the sheet showing), `'coupon'`, `'readme'`, `'settings'` (the settings file), `'jigParts'`, `'jigStation'`, as the buttons do. |
 | `snapshot({ width, height, background })` | A PNG of what the 3D view shows now. |
 | `collapse(section, on = true)` | Folds a settings card, for example `'Cut sheet'`. |
 | `showHelp()` / `toast(message)` | Opens the Help guide, or shows a message. |

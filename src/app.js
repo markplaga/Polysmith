@@ -1077,7 +1077,7 @@ API.browser = {
     if (kind === 'dxf') return dl(fname(curSheet, 'dxf'), P.sheetDXF(sh));
     if (kind === 'coupon') { const c = E.couponSVG(R); return dl(c.name, c.data); }
     if (kind === 'readme') return dl('README.txt', E.readme(R));
-    if (kind === 'settings') return dl(baseName() + '-settings.json', API.settings.serialize(st));
+    if (kind === 'settings') return dl(baseName() + '-settings.json', API.browser.exportSettings());
     if (kind === 'jigParts' || kind === 'jigStation') { const f = E.jigFiles(R); if (!f.length) throw new RangeError('This design has no bevel jig'); const it = kind === 'jigStation' ? f.find(x => /station\.svg$/.test(x.name)) : f[0]; return dl(it.name, it.data); }
     throw new RangeError('download kind must be zip, svg, dxf, coupon, readme, settings, jigParts or jigStation');
   },
@@ -1089,14 +1089,46 @@ API.browser = {
     if (h.parentElement.classList.contains('collapsed') !== !!on) h.click();
     return !!on;
   },
+  /** Everything on the page as a JSON settings file: settings, artwork, 3D view and lamp, and (if asked) the artwork library. */
+  exportSettings({ art = true, view = true, library = false } = {}) {
+    const v = viewNow(), vw = { yaw: v.yaw, pitch: Math.max(-90, Math.min(90, v.pitch)), zoom: Math.max(0.2, Math.min(12, v.zoom)), view: v.view, explode: v.explode, spin: v.spin, stereo: v.stereo, lamp: v.lamp };
+    return API.settings.export(st, { art: art && ART ? ART : null, view: view ? vw : null, library: library && LIB.length ? LIB : null });
+  },
+  /** Loads a settings file (text or object) into the page: settings, then artwork, 3D view and library if the file has them. Returns what was loaded. */
+  async importSettings(json, { art = true, view = true, library = true } = {}) {
+    const doc = E.importDoc(json);
+    let artOk = null;
+    if (art && doc.art) {
+      if (doc.art.svg) { try { ART = parseArt(doc.art.svg, doc.art.name); artOk = ART.name; } catch (e) { ART = doc.art.polys ? E.checkArt(doc.art) : null; artOk = ART ? ART.name : null; } }
+      else if (doc.art.polys) { ART = doc.art; artOk = ART.name; }
+      if (ART && ART.svg) { try { localStorage.setItem('polysmith-art', JSON.stringify({ name: ART.name, svg: ART.svg })); } catch (e) { /* ignore */ } }
+    }
+    if (library && doc.library) { doc.library.forEach(x => libAdd(x.name, x.svg, true)); libSave(); }
+    st = doc.settings; syncInputs(); renderArtUI(); compute(); save();
+    if (view && doc.view) {
+      const { view: vv, lamp: L, ...rest } = doc.view;
+      if (L) API.browser.view({ lamp: L });
+      try { if (vv) API.browser.view({ view: vv }); } catch (e) { /* that view isn't available for these settings */ }
+      API.browser.view(rest);
+    }
+    return { settings: API.browser.getSettings(), art: artOk, view: !!(view && doc.view), library: library && doc.library ? doc.library.length : 0 };
+  },
   showHelp() { location.href = 'help/index.html'; },
   toast: msg => toast(String(msg)),
 };
 window.Polysmith = API;
+function bindSettingsFile() {
+  $('#set-export').addEventListener('click', () => dl(baseName() + '-settings.json', API.browser.exportSettings({ library: LIB.length > 0 && LIB.length <= 60 })));
+  $('#set-import').addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
+    try { const r = await API.browser.importSettings(await f.text()); toast(`Loaded ${f.name}${r.art ? ' · artwork ' + r.art : ''}${r.library ? ` · ${r.library} library designs` : ''}`); }
+    catch (er) { toast(er.message || "Couldn't read that settings file", true); }
+  });
+}
 
 /* boot */
 try { G = initGL(); } catch (e) { G = null; }
 if (!G) ctx = cv.getContext('2d');
-bind(); bindLib(); bindArt(); bindMax(); bindSolo(); bindStereo(); bindLamp(); bindFade(); bindCollapse(); syncInputs(); icons(); compute(); updPlay();
+bind(); bindLib(); bindArt(); bindMax(); bindSolo(); bindStereo(); bindLamp(); bindFade(); bindCollapse(); bindSettingsFile(); syncInputs(); icons(); compute(); updPlay();
 requestAnimationFrame(frame);
 })();
