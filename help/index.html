@@ -62,6 +62,7 @@ th{color:var(--mute);font-weight:500}
   <a href="#jig">Bevel jig</a>
   <a href="#sheet">Cut sheet &amp; downloads</a>
   <a href="#tips">Tips &amp; troubleshooting</a>
+  <a href="#api">For programmers: the API</a>
 </nav>
 
 <main>
@@ -268,6 +269,14 @@ th{color:var(--mute);font-weight:500}
 <p>They faded to 1%, but they are still there. Tap where they were to bring them back.</p>
 <h3>Start over</h3>
 <p><b>Reset everything</b> at the bottom of the Sheet card. Your settings are otherwise remembered between visits.</p>
+</section>
+
+<section id="api">
+<h2>For programmers: the API</h2>
+<p>Everything Polysmith does can also be done from code. You can build designs, write the SVG, DXF and zip files, add artwork, render pictures (lamp mode included) and drive this page. In the browser console it's <code>window.Polysmith</code>; in Node it's <code>polysmith-api.js</code>.</p>
+<p>Try it in the console:</p>
+<p><code>Polysmith.browser.updateSettings({ solid: 'dodeca', window: 'voronoi' })</code><br><code>Polysmith.browser.view({ lamp: { gain: 2 } })</code></p>
+<p>The full reference is <a href="https://github.com/markplaga/Polysmith/blob/main/API.md">API.md on GitHub</a>.</p>
 <p style="margin-top:40px"><a href="../index.html">← Back to Polysmith</a></p>
 </section>
 

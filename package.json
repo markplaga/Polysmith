@@ -1,0 +1,14 @@
+{
+  "name": "polysmith",
+  "version": "1.0.0",
+  "description": "Laser-cut Platonic solids: web app and JavaScript API",
+  "main": "polysmith-api.js",
+  "scripts": {
+    "build": "node build.js",
+    "test": "node --test tests/api.test.js"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.50.0"
+  },
+  "license": "MIT"
+}

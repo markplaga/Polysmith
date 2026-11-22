@@ -39,3 +39,15 @@ node tests/ftest.js      # finger-joint collision sweep (slow)
 node tests/btest.js      # bevelled vs square teeth: collisions, protrusion, gaps
 node tests/patterns.js   # every cut-out pattern keeps a full bridge between holes
 ```
+
+## JavaScript API
+
+Everything the page does is also a JavaScript API. It works in Node (`require('./polysmith-api.js')`, with no dependencies), with pictures and SVG import through headless Chrome (`require('./polysmith-node.js').load()`), and in the page's console as `window.Polysmith`. See [API.md](API.md).
+
+```js
+const Polysmith = require('./polysmith-api.js');
+const design = Polysmith.design.compute({ solid: 'dodeca', mode: 'finger', size: 100, window: 'honeycomb' });
+for (const f of design.files) require('fs').writeFileSync(f.name, f.data);
+```
+
+Build the page from `src/` with `npm run build`; run the tests with `npm install && npm test`.

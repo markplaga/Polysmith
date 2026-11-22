@@ -5,11 +5,7 @@ const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySel
 const IN = 25.4;
 
 /* ---------- state ---------- */
-const DEF = {
-  solid: 'icosa', mode: 'tab', units: 'mm', measure: 'edge', size: 80, t: 3, kerf: 0.15, fit: 0.05,
-  perEdge: 1, tabLen: 0, protrude: 0, patDensity: 4, bridge: 2.5, fingerW: 0, fingerStyle: 'flush', deckColor: '#3f9aa0', material: 'ply', matColor: '#e0473c', opacity: 60, artMode: 'fill', artScale: 80, artRot: 0, artWhere: 'all', window: 'none', windowPct: 60, dice: false,
-  tabH: 8, fold: 'score', copies: 1, sheetW: 600, sheetH: 400, margin: 5, spacing: 3, sheetPreset: '600x400',
-};
+const E = window.PolyEngine, DEF = E.DEF;
 let st = { ...DEF };
 try { const s = JSON.parse(localStorage.getItem('polysmith') || 'null'); if (s) st = { ...DEF, ...s }; } catch (e) { /* storage unavailable */ }
 const save = () => { try { localStorage.setItem('polysmith', JSON.stringify(st)); } catch (e) { /* ignore */ } };
@@ -25,24 +21,8 @@ const u = (mm, dp) => st.units === 'in' ? (mm / IN).toFixed(dp == null ? 3 : dp)
 /* ---------- artwork: SVG -> polylines ---------- */
 const TAU2 = Math.PI * 2;
 let ART = null; // {name, svg, polys:[{pts,closed}]} normalised to the unit circle, y-up
-function rdp(pts, eps) {
-  if (pts.length < 3) return pts;
-  const keep = new Uint8Array(pts.length); keep[0] = keep[pts.length - 1] = 1;
-  const stack = [[0, pts.length - 1]];
-  while (stack.length) {
-    const [a, b] = stack.pop(); let md = 0, mi = -1;
-    const A = pts[a], B = pts[b], dx = B[0] - A[0], dy = B[1] - A[1], L2 = dx * dx + dy * dy;
-    for (let i = a + 1; i < b; i++) {
-      const P0 = pts[i]; let d;
-      if (L2 < 1e-12) d = Math.hypot(P0[0] - A[0], P0[1] - A[1]);
-      else { const tt = Math.max(0, Math.min(1, ((P0[0] - A[0]) * dx + (P0[1] - A[1]) * dy) / L2)); d = Math.hypot(P0[0] - A[0] - tt * dx, P0[1] - A[1] - tt * dy); }
-      if (d > md) { md = d; mi = i; }
-    }
-    if (md > eps && mi > 0) { keep[mi] = 1; stack.push([a, mi], [mi, b]); }
-  }
-  return pts.filter((_, i) => keep[i]);
-}
 function sanitizeSVG(text) {
+  if (!/<svg[^>]*\sxmlns\s*=/i.test(text)) text = text.replace(/<svg(?=[\s>])/i, '<svg xmlns="http://www.w3.org/2000/svg"'); // hand-written SVGs often leave it out
   const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
   const root = doc.documentElement;
   if (!root || root.nodeName.toLowerCase() !== 'svg' || doc.getElementsByTagName('parsererror').length) throw new Error("That file isn't a readable SVG.");
@@ -109,37 +89,7 @@ function parseArt(text, name) {
       for (let i = start; i < polys.length; i++) polys[i].white = white;
     });
   } finally { host.remove(); }
-  // drop white background panels: white shapes as big as the whole drawing
-  const bb = arr => { let a = Infinity, b2 = Infinity, c = -Infinity, d = -Infinity; arr.forEach(pl => pl.forEach(q => { a = Math.min(a, q[0]); b2 = Math.min(b2, q[1]); c = Math.max(c, q[0]); d = Math.max(d, q[1]); })); return { x0: a, y0: b2, x1: c, y1: d, w: c - a, h: d - b2 }; };
-  const ink = polys.filter(pl => !pl.white);
-  if (ink.length) {
-    const B = bb(ink);
-    for (let i = polys.length - 1; i >= 0; i--) if (polys[i].white) { const w = bb([polys[i]]); if (w.w >= B.w * 0.9 && w.h >= B.h * 0.9) polys.splice(i, 1); }
-  }
-  if (!polys.length) throw new Error(texts ? 'This SVG only has text. Convert text to paths (outlines) in your design app, then upload again.' : 'No drawable shapes found in that SVG.');
-  // centre = centroid of the convex hull of everything drawn (a triangle of dots centres on the triangle's centre)
-  const all = []; polys.forEach(pl => pl.forEach(q => all.push(q)));
-  all.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-  const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]), lo = [], up = [];
-  for (const q of all) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
-  for (let i = all.length - 1; i >= 0; i--) { const q = all[i]; while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
-  const hull = lo.slice(0, -1).concat(up.slice(0, -1));
-  let A = 0, hx = 0, hy = 0;
-  for (let i = 0; i < hull.length; i++) { const p0 = hull[i], p1 = hull[(i + 1) % hull.length], w = p0[0] * p1[1] - p1[0] * p0[1]; A += w; hx += (p0[0] + p1[0]) * w; hy += (p0[1] + p1[1]) * w; }
-  let cx, cy;
-  if (Math.abs(A) > 1e-9) { cx = hx / (3 * A); cy = hy / (3 * A); }
-  else { let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; all.forEach(q => { x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]); }); cx = (x0 + x1) / 2; cy = (y0 + y1) / 2; }
-  let r = 0;
-  polys.forEach(pl => pl.forEach(q => { r = Math.max(r, Math.hypot(q[0] - cx, q[1] - cy)); }));
-  r = r || 1;
-  const out = polys.map(pl => {
-    let pts = pl.map(q => [(q[0] - cx) / r, (q[1] - cy) / r]);
-    const closed = pts.length > 3 && Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]) < 0.01;
-    pts = rdp(pts, 0.0012); if (closed && pts.length > 3) pts.pop();
-    return { pts, closed: closed && pts.length >= 3 };
-  }).filter(pl => pl.pts.length >= 2);
-  const clean = new XMLSerializer().serializeToString(root);
-  return { name: name || 'artwork.svg', svg: clean, polys: out, texts };
+  return E.normalizeArt(polys, { name, svg: new XMLSerializer().serializeToString(root), texts });
 }
 function setArt(text, name) {
   ART = parseArt(text, name);
@@ -157,73 +107,12 @@ function renderArtUI() {
   $$('.art-opt').forEach(el => { el.style.display = has ? '' : 'none'; });
   renderLib();
 }
-function artRadius(res, mode) {
-  const inf = res.info, t = st.t;
-  if (st.mode === 'net') { const n = R0().sides; return R0L() / (2 * Math.tan(Math.PI / n)) * 0.82; }
-  if (inf.finger) return mode === 'cut' ? inf.finger.a - inf.finger.v - Math.max(2 * t, 4) : inf.finger.a - inf.finger.v - 1;
-  if (mode === 'cut') return inf.per > 0 ? inf.ap - inf.D - Math.max(t, 2.5) : inf.ap - Math.max(2 * t, 4);
-  return inf.ap - Math.max(1.2 * t, 2.5);
-}
-let _S = null, _L = 0; const R0 = () => _S, R0L = () => _L;
-function applyArt(res, S, L) {
-  _S = S; _L = L; res.artFace = null;
-  if (!ART) return;
-  const mode = st.artMode, rot = st.artRot * Math.PI / 180, nS = S.sides;
-  // polygon norm: how far the (rotated) art reaches toward each edge of the face; 1 = touches the inscribed circle
-  let pn = 1e-6; const ca0 = Math.cos(rot), sa0 = Math.sin(rot);
-  ART.polys.forEach(pl => pl.pts.forEach(p => { const x = p[0] * ca0 - p[1] * sa0, y = p[0] * sa0 + p[1] * ca0; for (let k = 0; k < nS; k++) { const ph = -Math.PI / 2 + k * TAU2 / nS; pn = Math.max(pn, x * Math.cos(ph) + y * Math.sin(ph)); } }));
-  const rad = Math.max(1, artRadius(res, mode)) * st.artScale / 100 / pn;
-  const tf = (pts, c, r, a) => { const ca = Math.cos(a), sa = Math.sin(a); return pts.map(p => [c[0] + (p[0] * ca - p[1] * sa) * r, c[1] + (p[0] * sa + p[1] * ca) * r]); };
-  const emit = (part, c, r, a) => {
-    part.fills = part.fills || [];
-    ART.polys.forEach(pl => { const o = { pts: tf(pl.pts, c, r, a), closed: pl.closed };
-      if (mode === 'cut' && pl.closed) part.cuts.push(o); else if (mode === 'fill' && pl.closed) part.fills.push(o); else part.marks.push(o); });
-  };
-  res.artFace = { r: rad, rot, mode };
-  if (st.mode === 'net') {
-    const part = res.parts[0], pos = res.info.pos; if (!pos) return;
-    res.artFace.net = [];
-    pos.forEach((pp, f) => {
-      if (st.artWhere === 'one' && f !== 0) return;
-      let cx = 0, cy = 0; pp.forEach(q => { cx += q[0]; cy += q[1]; }); cx /= pp.length; cy /= pp.length;
-      const a = Math.atan2(pp[1][1] - pp[0][1], pp[1][0] - pp[0][0]) + rot;
-      emit(part, [cx, cy], rad, a); res.artFace.net.push({ f, c: [cx, cy], a });
-    });
-    return;
-  }
-  const faces = res.parts.filter(p => /^Face/.test(p.name));
-  if (st.artWhere === 'one') {
-    const f0 = faces[0]; if (!f0) return;
-    if (f0.count > 1) {
-      const copy = { ...f0, name: f0.name + ' (art)', count: 1, cuts: f0.cuts.slice(), marks: f0.marks.slice(), scores: (f0.scores || []).slice(), fills: [] };
-      f0.count -= 1; res.parts.splice(res.parts.indexOf(f0), 0, copy); emit(copy, [0, 0], rad, rot);
-    } else emit(f0, [0, 0], rad, rot);
-  } else faces.forEach(f => emit(f, [0, 0], rad, rot));
-  if (mode === 'cut') res.warn.push({ lvl: 'info', msg: 'Cut-through artwork: any island inside a closed shape will fall out. Stencil-style designs work best.' });
-}
-
 /* ---------- compute ---------- */
 let R = null;
-function edgeFromSize() {
-  const S = P.solid(st.solid);
-  if (st.measure === 'edge') return st.size;
-  if (st.measure === 'sphere') return st.size / (2 * S.R);
-  return st.size / S.height;
-}
+const edgeFromSize = () => E.edgeFromSize(st);
 function compute() {
-  const L = edgeFromSize();
-  const base = { solid: st.solid, L, t: st.t, kerf: st.kerf, fit: st.fit };
-  let res;
-  if (st.mode === 'net') res = P.net({ ...base, tabH: st.tabH, fold: st.fold, dice: st.dice, copies: st.copies, window: st.window, windowPct: st.windowPct, patDensity: st.patDensity, bridge: st.bridge });
-  else res = P.panels({ ...base, joint: st.mode, perEdge: st.perEdge, tabLen: st.tabLen, fingerW: st.fingerW, fingerStyle: st.fingerStyle, protrude: st.protrude, window: st.window, windowPct: st.windowPct, patDensity: st.patDensity, bridge: st.bridge, dice: st.dice });
-  applyArt(res, P.solid(st.solid), L);
-  let jig = null;
-  if (st.mode === 'finger' && st.fingerStyle === 'bevel' && res.info.finger) jig = P.jigStation(P.solid(st.solid), L, st.t, res.info.finger, { kerf: st.kerf, fit: st.fit, bedW: st.sheetW, bedH: st.sheetH });
-  const pk = P.pack(res.parts, st.sheetW, st.sheetH, st.margin, st.spacing);
-  let cut = 0, score = 0;
-  pk.sheets.forEach(sh => { sh.cuts.forEach(c => { cut += P.perim(c); }); sh.scores.forEach(c => { score += P.perim(c); }); });
-  R = { L, res, pk, cut, score, S: P.solid(st.solid), jig };
-  if (curSheet >= pk.sheets.length) curSheet = 0;
+  R = E.compute({ ...st }, ART);
+  if (curSheet >= R.pk.sheets.length) curSheet = 0;
   sceneDirty = true;
   renderAll();
 }
@@ -304,41 +193,12 @@ function bind() {
   $('#dl-svg').addEventListener('click', () => dl(fname(curSheet, 'svg'), P.sheetSVG(R.pk.sheets[curSheet], ...sheetDims(R.pk.sheets[curSheet]))));
   $('#dl-dxf').addEventListener('click', () => dl(fname(curSheet, 'dxf').replace(/dxf$/, 'dxf'), P.sheetDXF(R.pk.sheets[curSheet]), true));
   $('#dl-zip').addEventListener('click', () => dl(baseName() + '.zip', buildZip()));
-  $('#dl-coupon').addEventListener('click', () => {
-    const pan = R.res.parts.find(p => p.name === 'Bracket') ? R.res : P.panels({ solid: st.solid, L: R.L, t: st.t, kerf: st.kerf, fit: st.fit, joint: 'tab', perEdge: 1, tabLen: st.tabLen, protrude: 0, window: 'none', windowPct: 0, dice: false });
-    const parts = P.coupon({ t: st.t, kerf: st.kerf, fit: st.fit }, pan);
-    const pk = P.pack(parts, 300, 200, 4, 3), sh = pk.sheets[0];
-    const b = P.bbox(sh.cuts.map(c => c.pts));
-    dl(`polysmith-fit-coupon-${st.t}mm.svg`, P.sheetSVG(sh, Math.ceil(b.x1 + 4), 200).replace(/viewBox="0 0 (\S+) 200"/, (m, w) => `viewBox="0 ${(200 - b.y1 - 4).toFixed(2)} ${w} ${(b.y1 - b.y0 + 8).toFixed(2)}"`).replace(/height="200mm"/, `height="${(b.y1 - b.y0 + 8).toFixed(2)}mm"`));
-  });
+  $('#dl-coupon').addEventListener('click', () => { const c = E.couponSVG(R); dl(c.name, c.data); });
 }
-const sheetDims = sh => sh.oversize ? [Math.ceil(sh.oversize.w), Math.ceil(sh.oversize.h)] : [st.sheetW, st.sheetH];
-const baseName = () => `polysmith-${R.S.name.toLowerCase()}-${st.mode === 'net' ? 'net' : st.mode === 'tab' ? 'slotted' : st.mode === 'finger' ? 'finger' : st.mode === 'block' ? 'glueblock' : 'panels'}-${Math.round(R.L)}mm-edge-${st.t}mm`;
-const fname = (i, ext) => `${baseName()}-sheet${i + 1}of${R.pk.sheets.length}.${ext}`;
-function readme() {
-  const S = R.S, inf = R.res.info, lines = [
-    `Polysmith — ${S.name} (${S.die})`, '',
-    `Edge length (outer): ${R.L.toFixed(2)} mm`, `Dihedral angle: ${(S.dihedral * 180 / Math.PI).toFixed(3)}°`,
-    `Across points (sphere dia): ${(2 * S.R * R.L).toFixed(1)} mm`, `Height resting on a face: ${(S.height * R.L).toFixed(1)} mm`,
-    `Material: ${st.t} mm, kerf ${st.kerf} mm, fit ${st.fit} mm`, '',
-    'Colours: RED = cut, BLUE = score / fold line, GREEN = line engrave, BLACK = fill engrave (artwork).',
-    'Files are in millimetres. Import at 100% scale. DXF layers: CUT, SCORE, ENGRAVE.', '',
-    'Parts:', ...R.res.parts.map(p => `  ${p.count} × ${p.name}`), '', ...guideText().map(s => '- ' + s),
-  ];
-  if (inf.s != null) lines.splice(7, 0, `Face inset per edge (thickness compensation): ${inf.s.toFixed(2)} mm`);
-  return lines.join('\r\n');
-}
-function buildZip() {
-  const files = [];
-  R.pk.sheets.forEach((sh, i) => { files.push({ name: fname(i, 'svg'), data: P.sheetSVG(sh, ...sheetDims(sh)) }); files.push({ name: fname(i, 'dxf'), data: P.sheetDXF(sh) }); });
-  if (R.jig) {
-    const pk = P.pack(R.jig.parts, st.sheetW, st.sheetH, st.margin, st.spacing);
-    pk.sheets.forEach((sh, i) => files.push({ name: `${baseName()}-jig-parts-${i + 1}.svg`, data: P.sheetSVG(sh, st.sheetW, st.sheetH) }));
-    files.push({ name: `${baseName()}-jig-station.svg`, data: P.stationSVG(R.jig.station) }, { name: `${baseName()}-jig-station.dxf`, data: P.stationDXF(R.jig.station) });
-  }
-  files.push({ name: 'README.txt', data: readme() });
-  return P.zip(files);
-}
+const sheetDims = sh => E.sheetDims(st, sh);
+const baseName = () => E.baseName(R);
+const fname = (i, ext) => E.fname(R, i, ext);
+const buildZip = () => E.zipBlob(R);
 let dlNS = null;
 if (window.claude && window.claude.use) window.claude.use('downloads').then(ns => { dlNS = ns; }).catch(() => {});
 function toast(m, bad) { const el = $('#toast'); el.textContent = m; el.className = 'toast show' + (bad ? ' bad' : ''); clearTimeout(el._t); el._t = setTimeout(() => { el.className = 'toast'; }, 3600); }
@@ -424,47 +284,14 @@ function renderJig() {
   $('#dl-jstation').onclick = () => dl(`${baseName()}-jig-station.svg`, P.stationSVG(J.station));
 }
 
-function guideText() {
-  const S = R.S, n = S.faces.length;
-  if (st.mode === 'tab') return [
-    'Cut the fit coupon first in the same sheet. Push a bracket tab into each slot. Pick the one that needs firm thumb pressure, then add that number to Fit. (The middle "0" slot is your current setting.)',
-    `Every face is identical and every bracket is identical (${R.res.info.per * S.edges.length} brackets). No sorting needed.`,
-    'Push a bracket into one slot of a face from the inside. The tab ends flush with the outside.',
-    'Each face slides straight on, perpendicular to itself. So build outward from one face, adding brackets to open edges as you go.',
-    'The last face drops straight down onto its brackets. That\'s the whole point of this joint: no wrestling the final piece.',
-    'If a joint is loose, a dot of wood glue on the tab from inside fixes it. Tight? Raise Fit by 0.05 mm.',
-  ];
-  if (st.mode === 'finger') return [
-    `Every face is identical: ${S.faces.length} pieces, ${R.res.info.finger.N} fingers per edge. Each edge starts with a finger at one corner and ends with a notch at the other, so any face meets any other face.`,
-    'The fingers are offset for the ' + (S.dihedral * 180 / Math.PI).toFixed(2) + '° angle between faces, so the faces lock at exactly the right angle once they\'re pushed together. That makes them self-jigging.',
-    'Build outward from one face. Each new face goes on straight, perpendicular to itself, and the last face drops in the same way.',
-    st.fingerStyle === 'bevel' ? 'Bevelled teeth: every tooth tip and notch bottom is cut at the face angle, so the joint closes with no gaps and nothing to sand. Cut the faces flat, then bevel them in the jig (see the Bevel jig card).' : st.fingerStyle === 'full' ? 'Full teeth stand slightly proud along the edges. Glue up, then sand or file them flush for crisp edges.' : 'Flush teeth never stick out. ' + (S.dihedral > Math.PI / 2 + 0.01 ? 'On this solid you\'ll see small V-notches beside each tooth along the edges, which is normal for angled finger joints. Switch to Full teeth and sand if you want them filled.' : 'The edges come out clean.'),
-    'Wood glue on the fingers makes it permanent. For a dry fit, raise Fit by 0.05 mm at a time until it goes together with firm hand pressure.',
-  ];
-  if (st.mode === 'block') return [
-    'Faces have no visible joints. Angle blocks are glued inside, one per edge, and they set the angle for you.',
-    'Glue a block to one face, centred on an edge, flat against the inside surface with its tip at the face edge.',
-    'Bring the next face down onto the block\'s other side. The faces touch along their inside corners.',
-    'Use the two angle jigs on the outside to check edges while the glue sets. For acrylic, use solvent cement on the blocks.',
-  ];
-  if (st.mode === 'none') return [
-    'Edge-glued panels: faces are shrunk so their inside corners meet exactly at the right angle. You get a crisp V-groove on every outside edge.',
-    'Glue only touches along a line, so this is best for acrylic with solvent cement, or for small pieces. Fill the grooves with glue or putty if you like.',
-    'The two angle jigs sit over an edge from outside to hold it at exactly ' + (S.dihedral * 180 / Math.PI).toFixed(2) + '° while it sets.',
-  ];
-  return [
-    `One-piece net: ${n} faces. Blue lines are folds (score at low power, or pick "perforated" to cut dashes).`,
-    'Fold every line the same way, with the printed or engraved side out. Then glue each tab under its neighbouring face.',
-    'Close the last face using a tab on its long side. A dab of glue and a fingertip from the open side does it.',
-    st.dice ? `Dice numbers are already placed so opposite faces add up to ${n === 4 ? '— (d4 is different)' : n + 1}.` : 'Tip: turn on Dice numbers to make a working d' + n + '.',
-  ];
-}
+const guideText = () => E.guideText(R);
 function renderGuide() { $('#guide').innerHTML = guideText().map(s => `<li>${s}</li>`).join(''); }
 
 /* ---------- 3D ---------- */
 const anim = { t: 0, dir: 1, playing: false };
+let autoSpin = true;
 let yaw = 0.6, pitch = -0.35, dragging = false, lastX = 0, lastY = 0, idle = 0, sceneDirty = true, scene = [], viewR = 1;
-const cv = $('#view');
+let cv = $('#view');
 let ctx = null;
 function updPlay() { $('#play').textContent = anim.playing ? '❚❚' : '▶'; $('#slider').value = Math.round(anim.t * 1000); }
 function rotAbout(pa, pb, th) {
@@ -472,18 +299,7 @@ function rotAbout(pa, pb, th) {
   return x => { const v = V.sub(x, o); return V.add(V.add(V.add(V.mul(v, c), V.mul(V.cross(k, v), s)), V.mul(k, V.dot(k, v) * (1 - c))), o); };
 }
 const WOOD = [222, 184, 135], WOOD_IN = [176, 140, 98], GRAIN = [150, 108, 66], BRK = [235, 120, 80], PAPER = [246, 240, 228], PAPER_IN = [214, 196, 168], TAB = [196, 168, 130];
-/* materials: colours for 3D, opacity (a), light transmission for lamp mode (tr), typical kerf */
-const MATS = {
-  ply: { face: [222, 184, 135], inn: [176, 140, 98], edge: [150, 108, 66], a: 1, tr: 0, kerf: 0.15 },
-  mdf: { face: [176, 138, 100], inn: [160, 124, 90], edge: [96, 70, 48], a: 1, tr: 0, kerf: 0.15 },
-  bamboo: { face: [222, 194, 132], inn: [204, 172, 112], edge: [172, 132, 78], a: 1, tr: 0, kerf: 0.15 },
-  walnut: { face: [128, 88, 60], inn: [112, 76, 52], edge: [84, 56, 38], a: 1, tr: 0, kerf: 0.15 },
-  clear: { face: [205, 228, 236], inn: [190, 215, 225], edge: [170, 215, 232], a: 0.22, tr: 0.85, kerf: 0.1, tint: [1, 1, 1], op: 20 },
-  frost: { face: [236, 240, 242], inn: [226, 232, 235], edge: [214, 226, 232], a: 0.8, tr: 0.45, kerf: 0.1, tint: [1, 1, 1], op: 60 },
-  color: { a: 0.55, tr: 0.6, kerf: 0.1, tinted: true, op: 45 },
-  black: { face: [38, 38, 42], inn: [30, 30, 34], edge: [20, 20, 22], a: 1, tr: 0, kerf: 0.1 },
-  card: { face: [246, 240, 228], inn: [222, 210, 188], edge: [200, 190, 170], a: 1, tr: 0.12, kerf: 0.05, tint: [1, 0.95, 0.85] },
-};
+const MATS = E.MATS;
 const hexRGB = h => { const m = /^#?([0-9a-f]{6})$/i.exec(h || '') || [0, 'e0473c']; return [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16)); };
 function matCols() {
   let M = MATS[st.material] || MATS.ply;
@@ -653,8 +469,8 @@ function draw(ctx2, W, H, polys, rad, opt = {}) {
 
 /* ---------- WebGL renderer (true depth buffer) ---------- */
 let G = null;
-function initGL() {
-  const gl = cv.getContext('webgl', { antialias: true, alpha: true, premultipliedAlpha: false });
+function initGL(keep) {
+  const gl = cv.getContext('webgl', { antialias: true, alpha: true, premultipliedAlpha: false, preserveDrawingBuffer: !!keep });
   if (!gl || !window.earcut) return null;
   const sh = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw gl.getShaderInfoLog(o); return o; };
   const prog = (vs, fs) => { const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p); return p; };
@@ -897,7 +713,7 @@ function frame(ts) {
     anim.t += anim.dir * 0.006; if (anim.t >= 1) { anim.t = 1; anim.playing = false; } if (anim.t <= 0) { anim.t = 0; anim.playing = false; }
     updPlay(); sceneDirty = true;
   }
-  if (!dragging && !ptrs.size && zoom <= 1.05 && ts - idle > 1800) yaw += 0.0035;
+  if (autoSpin && !dragging && !ptrs.size && zoom <= 1.05 && ts - idle > 1800) yaw += 0.0035;
   if (R && sceneDirty) { scene = buildScene(); sceneDirty = false; let r = 0; scene.forEach(p => p.pts.forEach(q => { r = Math.max(r, V.len(q)); })); if (lampOK()) r *= 2.35 * Math.max(0.75, lampSize) * (1 + 0.5 * Math.max(Math.abs(lampOff[0]), Math.abs(lampOff[1]), Math.abs(lampOff[2]))); viewR = viewR ? viewR + (r - viewR) * (anim.playing ? 0.25 : 1) : r; if (G) upload(scene); }
   if (G) {
     const asp = (stereo === 'off' ? W : W / 2) / Math.max(1, H);
@@ -1012,6 +828,7 @@ function bindLib() {
 
 /* ---------- artwork UI + Claude drawing ---------- */
 let sampleFn = null, aiCtl = null;
+const hooks = {};
 if (window.claude && window.claude.use) window.claude.use('sample').then(f => { sampleFn = f || null; $('#ai').hidden = !sampleFn; $('#ai-off').hidden = !!sampleFn; renderArtUI(); }).catch(() => {});
 function bindArt() {
   $('#art-file').addEventListener('change', async e => {
@@ -1065,6 +882,7 @@ function bindStereo() {
     stereo = m; btn.classList.toggle('on', m !== 'off'); pill.hidden = m === 'off'; view.classList.toggle('stereo', m !== 'off');
     $$('#stereo [data-m]').forEach(b => b.classList.toggle('on', b.dataset.m === m)); sceneDirty = true;
   };
+  hooks.stereo = set;
   btn.addEventListener('click', () => set(stereo === 'off' ? 'cross' : 'off')); // always starts in cross-eyed
   pill.addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (b) set(b.dataset.m); });
   if (!G) btn.hidden = true;
@@ -1086,7 +904,7 @@ function bindLamp() {
   $$('#lamp-ctl .lc').forEach(b => b.addEventListener('click', () => { lampColor = b.dataset.c; $('#lamp-color').value = lampColor; sceneDirty = true; try { localStorage.setItem('polysmith-lampcolor', lampColor); } catch (er) { /* ignore */ } }));
   $('#lamp-size').addEventListener('input', e => { lampSize = e.target.value / 100; viewR = 0; sceneDirty = true; });
   $('#lamp-reset').addEventListener('click', () => { lampOff = [0, 0, 0]; lampSize = 1; ['x', 'y', 'z'].forEach(a => { $('#lamp-' + a).value = 0; }); $('#lamp-size').value = 100; viewR = 0; sceneDirty = true; });
-  window.__lampSync = sync;
+  window.__lampSync = sync; hooks.lampSync = sync;
   if (!G) btn.hidden = true;
 }
 function bindMax() {
@@ -1096,6 +914,7 @@ function bindMax() {
     btn.textContent = on ? '✕' : '⛶'; btn.setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen');
     sceneDirty = true;
   };
+  hooks.maximize = set;
   btn.addEventListener('click', async () => {
     const on = !view.classList.contains('max'); set(on);
     try { if (on && view.requestFullscreen && !document.fullscreenElement) await view.requestFullscreen(); else if (!on && document.fullscreenElement) await document.exitFullscreen(); } catch (e) { /* frame may refuse; CSS maximise still works */ }
@@ -1142,6 +961,138 @@ function bindCollapse() {
     h.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
   });
 }
+
+/* ---------- JavaScript API: window.Polysmith (see API.md) ---------- */
+const rad = d => d * Math.PI / 180, dg = r => Math.round(r * 180 / Math.PI * 1000) / 1000;
+const VIEWS = { whole: 'all', face: 'face', bracket: 'bracket', jig: 'jig' };
+const num = (o, k, a, b, d) => { const v = o[k] === undefined ? d : o[k]; if (typeof v !== 'number' || !Number.isFinite(v)) throw new TypeError(k + ' must be a number'); if (v < a || v > b) throw new RangeError(`${k} must be between ${a} and ${b}`); return v; };
+function lampOpts(l, base) {
+  if (l === undefined) return base;
+  if (typeof l === 'boolean') return { ...base, on: l };
+  if (!l || typeof l !== 'object') throw new TypeError('lamp must be true, false or { on, gain, color, roomSize, x, y, z }');
+  for (const k of Object.keys(l)) if (!['on', 'gain', 'color', 'roomSize', 'x', 'y', 'z'].includes(k)) throw new RangeError('Unknown lamp option: ' + k);
+  if (l.color !== undefined && !/^#[0-9a-f]{6}$/i.test(l.color)) throw new RangeError('lamp.color must look like #rrggbb');
+  return { on: l.on === undefined ? (base.on || true) : !!l.on, gain: num(l, 'gain', 0, 3, base.gain), color: l.color || base.color, roomSize: num(l, 'roomSize', 0.6, 2.5, base.roomSize), x: num(l, 'x', -0.6, 0.6, base.x), y: num(l, 'y', -0.6, 0.6, base.y), z: num(l, 'z', -0.6, 0.6, base.z) };
+}
+const lampNow = () => ({ on: lamp, gain: lampGain, color: lampColor, roomSize: lampSize, x: lampOff[0], y: lampOff[1], z: lampOff[2] });
+const LAMP0 = { on: false, gain: 1, color: '#ffd6a0', roomSize: 1, x: 0, y: 0, z: 0 };
+function sceneRadius(sc) { let r = 0; sc.forEach(p => p.pts.forEach(q => { r = Math.max(r, V.len(q)); })); if (lampOK()) r *= 2.35 * Math.max(0.75, lampSize) * (1 + 0.5 * Math.max(Math.abs(lampOff[0]), Math.abs(lampOff[1]), Math.abs(lampOff[2]))); return r; }
+
+/** Draw a design to a PNG on its own canvas and camera. The page's own view is not touched. */
+function renderPNG(settings = {}, o = {}) {
+  if (!o || typeof o !== 'object' || Array.isArray(o)) throw new TypeError('render options must be an object');
+  const known = ['yaw', 'pitch', 'width', 'height', 'zoom', 'view', 'explode', 'lamp', 'stereo', 'background', 'art'];
+  for (const k of Object.keys(o)) if (!known.includes(k)) throw new RangeError('Unknown render option: ' + k);
+  const W = num(o, 'width', 1, 8192, 1200), H = num(o, 'height', 1, 8192, 900);
+  if (!Number.isInteger(W) || !Number.isInteger(H)) throw new RangeError('width and height must be whole numbers');
+  const yawD = num(o, 'yaw', -3600, 3600, 34), pitchD = num(o, 'pitch', -90, 90, 20), zm = num(o, 'zoom', 0.2, 12, 1), ex = num(o, 'explode', 0, 1, 0);
+  const view = o.view === undefined ? 'whole' : o.view; if (!VIEWS[view]) throw new RangeError('view must be whole, face, bracket or jig');
+  const ster = o.stereo === undefined ? 'off' : o.stereo; if (!['off', 'cross', 'parallel'].includes(ster)) throw new RangeError('stereo must be off, cross or parallel');
+  const bg = o.background === undefined ? '#ffffff' : o.background; if (bg !== 'transparent' && !/^#[0-9a-f]{6}$/i.test(bg)) throw new RangeError("background must be '#rrggbb' or 'transparent'");
+  const L = lampOpts(o.lamp, LAMP0), art = E.checkArt(o.art === undefined ? null : o.art), S2 = E.normalize(settings);
+  const R2 = E.compute({ ...S2 }, art);
+  if (view === 'bracket' && !(S2.mode !== 'net' && R2.res.info.br && R2.res.info.per > 0)) throw new RangeError("view 'bracket' needs mode 'tab' or 'block'");
+  if (view === 'jig' && !R2.jig) throw new RangeError("view 'jig' needs finger joints with fingerStyle 'bevel' (and a solid other than the cube)");
+  const saved = { st, R, ART, yaw, pitch, zoom, panX, panY, solo, t: anim.t, lamp, lampGain, lampOff, lampSize, lampColor, stereo, G, cv, ctx, scene, viewR, eyeYaw };
+  let png;
+  try {
+    st = S2; ART = art; R = R2; solo = VIEWS[view]; anim.t = ex; yaw = rad(yawD); pitch = rad(pitchD); zoom = zm; panX = 0; panY = 0; stereo = ster; eyeYaw = 0;
+    lamp = L.on; lampGain = L.gain; lampColor = L.color; lampSize = L.roomSize; lampOff = [L.x, L.y, L.z];
+    cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    try { G = initGL(true); } catch (e) { G = null; }
+    const sc = buildScene(); if (!sc.length) throw new Error('Nothing to draw for these settings');
+    const r = sceneRadius(sc);
+    if (G) { G.lampAspect = (ster === 'off' ? W : W / 2) / H; upload(sc); drawGL(W, H, r); }
+    else { ctx = cv.getContext('2d'); draw(ctx, W, H, sc, r, { fill: 0.44 * zm, lw: 1 }); }
+    const out = document.createElement('canvas'); out.width = W; out.height = H; const c2 = out.getContext('2d');
+    if (bg !== 'transparent') { c2.fillStyle = bg; c2.fillRect(0, 0, W, H); }
+    c2.drawImage(cv, 0, 0); png = out.toDataURL('image/png');
+    if (G) { freeLamp(); const lc = G.gl.getExtension('WEBGL_lose_context'); if (lc) lc.loseContext(); }
+  } finally {
+    ({ st, R, ART, yaw, pitch, zoom, panX, panY, solo, lamp, lampGain, lampOff, lampSize, lampColor, stereo, G, cv, ctx, scene, viewR, eyeYaw } = saved); anim.t = saved.t;
+    sceneDirty = true;
+  }
+  return { png, width: W, height: H };
+}
+
+const API = E.api({ art: {
+  /** Reads an SVG the same way Upload SVG does. Returns a promise of the artwork object. */
+  fromSVG: async (svg, name) => { if (typeof svg !== 'string' || !/<svg[\s>]/i.test(svg)) throw new TypeError('fromSVG needs SVG text'); return parseArt(svg, name); },
+} });
+API.design.render = async (settings, options) => renderPNG(settings, options);
+API.library = {
+  list: () => LIB.map(x => ({ name: x.name, bytes: x.svg.length })),
+  get(name) { const it = LIB.find(x => x.name === name); return it ? { name: it.name, svg: it.svg } : null; },
+  async add(name, svg) { if (typeof name !== 'string' || !name) throw new TypeError('library.add needs a name'); parseArt(svg, name); libAdd(name, svg); renderLib(); return API.library.list(); },
+  remove(name) { const n = LIB.length; LIB = LIB.filter(x => x.name !== name); libSave(); renderLib(); return LIB.length < n; },
+  clear() { LIB = []; libSave(); renderLib(); },
+  async use(name) { const it = LIB.find(x => x.name === name); if (!it) throw new RangeError('No library design called ' + name); setArt(it.svg, it.name); return API.browser.getArt(); },
+};
+const viewNow = () => ({ yaw: dg(yaw), pitch: dg(pitch), zoom, pan: [panX, panY], view: Object.keys(VIEWS).find(k => VIEWS[k] === solo), explode: anim.t, playing: anim.playing, spin: autoSpin, stereo, lamp: lampNow(), maximize: $('.view').classList.contains('max'), deckColor: st.deckColor });
+API.browser = {
+  getSettings: () => JSON.parse(JSON.stringify(st)),
+  setSettings(s) { st = E.normalize(s); syncInputs(); compute(); save(); return API.browser.getSettings(); },
+  updateSettings(changes) { st = E.create(changes, st); syncInputs(); compute(); save(); return API.browser.getSettings(); },
+  reset() { st = { ...DEF }; syncInputs(); compute(); save(); return API.browser.getSettings(); },
+  current: (opt = {}) => E.result(R, opt),
+  view(c = {}) {
+    if (!c || typeof c !== 'object') throw new TypeError('view needs an object');
+    const known = ['yaw', 'pitch', 'zoom', 'pan', 'view', 'explode', 'playing', 'spin', 'stereo', 'lamp', 'maximize', 'deckColor'];
+    for (const k of Object.keys(c)) if (!known.includes(k)) throw new RangeError('Unknown view option: ' + k);
+    if (c.view !== undefined) {
+      if (!VIEWS[c.view]) throw new RangeError('view must be whole, face, bracket or jig');
+      solo = VIEWS[c.view]; updSolo(); if (solo !== VIEWS[c.view]) throw new RangeError(`The '${c.view}' view isn't available for these settings`); viewR = 0; sceneDirty = true;
+    }
+    if (c.yaw !== undefined) yaw = rad(num(c, 'yaw', -3600, 3600));
+    if (c.pitch !== undefined) pitch = rad(num(c, 'pitch', -86, 86));
+    if (c.zoom !== undefined) { zoom = num(c, 'zoom', ZMIN, ZMAX); updZoomUI(); }
+    if (c.pan !== undefined) { if (!Array.isArray(c.pan) || c.pan.length !== 2 || !c.pan.every(Number.isFinite)) throw new TypeError('pan must be [x, y] in pixels'); [panX, panY] = c.pan; }
+    if (c.explode !== undefined) { anim.t = num(c, 'explode', 0, 1); anim.playing = false; updPlay(); sceneDirty = true; }
+    if (c.playing !== undefined) { anim.playing = !!c.playing; if (anim.playing && anim.t >= 1) anim.dir = -1; if (anim.playing && anim.t <= 0) anim.dir = 1; updPlay(); }
+    if (c.spin !== undefined) autoSpin = !!c.spin;
+    if (c.stereo !== undefined) { if (!['off', 'cross', 'parallel'].includes(c.stereo)) throw new RangeError('stereo must be off, cross or parallel'); if (hooks.stereo) hooks.stereo(c.stereo); }
+    if (c.lamp !== undefined) {
+      const L = lampOpts(c.lamp, lampNow());
+      const turnOn = L.on && !lamp; lamp = L.on; lampGain = L.gain; lampColor = L.color; lampSize = L.roomSize; lampOff = [L.x, L.y, L.z];
+      if (turnOn) { solo = 'all'; updSolo(); anim.t = 0; anim.playing = false; updPlay(); }
+      $('#lamp-gain').value = Math.round(lampGain * 100); $('#lamp-color').value = lampColor; $('#lamp-size').value = Math.round(lampSize * 100);
+      ['x', 'y', 'z'].forEach((a, i) => { $('#lamp-' + a).value = Math.round(lampOff[i] * 100); });
+      try { localStorage.setItem('polysmith-lampcolor', lampColor); } catch (e) { /* ignore */ }
+      viewR = 0; sceneDirty = true; if (hooks.lampSync) hooks.lampSync();
+    }
+    if (c.maximize !== undefined && hooks.maximize) hooks.maximize(!!c.maximize);
+    if (c.deckColor !== undefined) { E.check('deckColor', c.deckColor); st.deckColor = c.deckColor; $('#deck-color').value = c.deckColor; sceneDirty = true; save(); }
+    idle = performance.now();
+    return viewNow();
+  },
+  play(on = true) { return API.browser.view({ playing: on }); },
+  async setArt(svg, name) { setArt(svg, name); return API.browser.getArt(); },
+  clearArt() { clearArt(); },
+  getArt: () => ART ? { name: ART.name, svg: ART.svg, paths: ART.polys.length, art: JSON.parse(JSON.stringify({ name: ART.name, svg: ART.svg, polys: ART.polys, texts: ART.texts })) } : null,
+  sheet(i) { if (i === undefined) return { index: curSheet + 1, of: R.pk.sheets.length }; if (!Number.isInteger(i) || i < 1 || i > R.pk.sheets.length) throw new RangeError(`sheet must be 1 to ${R.pk.sheets.length}`); curSheet = i - 1; renderSheet(); return { index: i, of: R.pk.sheets.length }; },
+  download(kind = 'zip') {
+    const sh = R.pk.sheets[curSheet];
+    if (kind === 'zip') return dl(baseName() + '.zip', buildZip());
+    if (kind === 'svg') return dl(fname(curSheet, 'svg'), P.sheetSVG(sh, ...sheetDims(sh)));
+    if (kind === 'dxf') return dl(fname(curSheet, 'dxf'), P.sheetDXF(sh));
+    if (kind === 'coupon') { const c = E.couponSVG(R); return dl(c.name, c.data); }
+    if (kind === 'readme') return dl('README.txt', E.readme(R));
+    if (kind === 'settings') return dl(baseName() + '-settings.json', API.settings.serialize(st));
+    if (kind === 'jigParts' || kind === 'jigStation') { const f = E.jigFiles(R); if (!f.length) throw new RangeError('This design has no bevel jig'); const it = kind === 'jigStation' ? f.find(x => /station\.svg$/.test(x.name)) : f[0]; return dl(it.name, it.data); }
+    throw new RangeError('download kind must be zip, svg, dxf, coupon, readme, settings, jigParts or jigStation');
+  },
+  /** A PNG of what the 3D view shows now (same camera, lamp and stereo), drawn offscreen. */
+  snapshot(opt = {}) { const r = cv.getBoundingClientRect(); return renderPNG(st, { width: Math.max(1, Math.round(opt.width || r.width || 800)), height: Math.max(1, Math.round(opt.height || r.height || 600)), yaw: dg(yaw), pitch: Math.max(-90, Math.min(90, dg(pitch))), zoom: Math.max(0.2, zoom), view: viewNow().view, explode: anim.t, stereo, lamp: lampOK() ? lampNow() : false, background: opt.background || '#171915', ...(ART ? { art: ART } : {}) }); },
+  collapse(section, on = true) {
+    const hs = $$('section.card > h2'), h = hs.find(x => x.textContent.replace(/^[\d\s·]+/, '').trim().toLowerCase() === String(section).toLowerCase());
+    if (!h) throw new RangeError('Section must be one of: ' + hs.map(x => x.textContent.replace(/^[\d\s·]+/, '').trim()).join(', '));
+    if (h.parentElement.classList.contains('collapsed') !== !!on) h.click();
+    return !!on;
+  },
+  showHelp() { location.href = 'help/index.html'; },
+  toast: msg => toast(String(msg)),
+};
+window.Polysmith = API;
 
 /* boot */
 try { G = initGL(); } catch (e) { G = null; }
