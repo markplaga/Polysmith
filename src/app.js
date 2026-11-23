@@ -1117,6 +1117,27 @@ API.browser = {
   toast: msg => toast(String(msg)),
 };
 window.Polysmith = API;
+/* ---------- install as an app (Android: install prompt; iPhone/iPad: Add to Home Screen) ---------- */
+function bindInstall() {
+  const btn = $('#install'); if (!btn) return;
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  let inFrame = false; try { inFrame = window.top !== window.self; } catch (e) { inFrame = true; }
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && !inFrame) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if (standalone || inFrame) return; // already installed, or inside Claude where installing isn't possible
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  let deferred = null;
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; btn.hidden = false; });
+  window.addEventListener('appinstalled', () => { btn.hidden = true; deferred = null; toast('Polysmith is installed'); });
+  if (ios) btn.hidden = false;
+  btn.addEventListener('click', async () => {
+    if (deferred) { deferred.prompt(); const r = await deferred.userChoice.catch(() => null); if (r && r.outcome === 'accepted') btn.hidden = true; deferred = null; return; }
+    let tip = $('.install-tip'); if (tip) { tip.remove(); return; }
+    tip = document.createElement('div'); tip.className = 'install-tip';
+    tip.innerHTML = ios ? '<button aria-label="Close">×</button><b>Install on iPhone or iPad</b><br>In Safari, tap the <b>Share</b> button (the square with an arrow), then <b>Add to Home Screen</b>.'
+      : '<button aria-label="Close">×</button><b>Install Polysmith</b><br>Open your browser menu (⋮) and choose <b>Install app</b> or <b>Add to Home screen</b>.';
+    tip.querySelector('button').onclick = () => tip.remove(); document.body.appendChild(tip);
+  });
+}
 function bindSettingsFile() {
   $('#set-export').addEventListener('click', () => dl(baseName() + '-settings.json', API.browser.exportSettings({ library: LIB.length > 0 && LIB.length <= 60 })));
   $('#set-import').addEventListener('change', async e => {
@@ -1129,6 +1150,6 @@ function bindSettingsFile() {
 /* boot */
 try { G = initGL(); } catch (e) { G = null; }
 if (!G) ctx = cv.getContext('2d');
-bind(); bindLib(); bindArt(); bindMax(); bindSolo(); bindStereo(); bindLamp(); bindFade(); bindCollapse(); bindSettingsFile(); syncInputs(); icons(); compute(); updPlay();
+bind(); bindLib(); bindArt(); bindMax(); bindSolo(); bindStereo(); bindLamp(); bindFade(); bindCollapse(); bindSettingsFile(); bindInstall(); syncInputs(); icons(); compute(); updPlay();
 requestAnimationFrame(frame);
 })();

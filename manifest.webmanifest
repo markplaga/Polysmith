@@ -1,0 +1,19 @@
+{
+  "name": "Polysmith — Platonic Solids for the Laser",
+  "short_name": "Polysmith",
+  "description": "Design laser-cut Platonic solids: slot & bracket, finger joints, bevelled teeth with a jig, folding nets, cut-out patterns, artwork and lamp mode.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#171915",
+  "theme_color": "#171915",
+  "categories": ["design", "productivity", "utilities"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
