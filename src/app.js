@@ -1122,7 +1122,9 @@ function bindInstall() {
   const btn = $('#install'); if (!btn) return;
   const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   let inFrame = false; try { inFrame = window.top !== window.self; } catch (e) { inFrame = true; }
-  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && !inFrame) navigator.serviceWorker.register('sw.js').catch(() => {});
+  // PWA-UPDATE-SYSTEM v2: the service worker is registered by the
+  // update script in index.html (updateViaCache 'none', scope './').
+  // Do not register it here as well.
   if (standalone || inFrame) return; // already installed, or inside Claude where installing isn't possible
   const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   let deferred = null;
